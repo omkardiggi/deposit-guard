@@ -314,11 +314,17 @@ Interactive documentation is served at `/docs`.
 
 ### Frontend — Vercel
 
-The frontend is a static SPA and deploys cleanly. `vercel.json` is included.
+The frontend is a static SPA and deploys cleanly. `frontend/vercel.json` is included.
 
 1. Import this repository at [vercel.com/new](https://vercel.com/new).
-2. Set the environment variable `VITE_API_BASE_URL` to your backend's public URL.
-3. Deploy.
+2. **Set the Root Directory to `frontend`** — Vercel otherwise detects the FastAPI
+   backend as a second service and the build target becomes ambiguous.
+3. Add the environment variable `VITE_API_BASE_URL` pointing at your backend's public URL.
+4. Deploy.
+
+> **Important:** `VITE_API_BASE_URL` is read at *build* time, not run time. If you add or
+> change it, you must redeploy for the new value to take effect. Without it the bundle
+> falls back to `http://localhost:8000` and a hosted frontend will not reach any API.
 
 ### Backend — *not* Vercel
 

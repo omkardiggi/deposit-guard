@@ -103,6 +103,240 @@ flowchart TD
 
 ---
 
+# How it works — complete walkthrough
+
+Every check performed from the moment a document is uploaded to the moment the bank
+clears the lien, in order. Nothing below is illustrative — each step maps to code in
+this repository.
+
+## Stage 1 — Choose the institution
+
+1. The officer opens **Submit New FDR** and types into the institution field.
+2. The picker filters the register live on **name, AICTE permanent ID, city or state**.
+3. If the college is not on file, **Register "<typed name>" as a new institution**
+   opens an inline form (name, AICTE ID, type, city, state, email).
+4. `POST /api/institutions` rejects a duplicate **AICTE permanent ID** with `400`.
+5. The new institution is selected immediately — no page reload, no losing the form.
+
+## Stage 2 — Upload the instrument
+
+6. The officer picks a file. It is sent to `POST /api/documents/upload` with the
+   selected `institution_id` attached.
+7. **Authentication gate** — no valid JWT, `401`. Uploading is never anonymous.
+8. **Extension check** — only `.pdf .png .jpg .jpeg .webp .tif .tiff .bmp`. Anything
+   else is refused with the offending extension named.
+9. **Empty-file check** — a zero-byte upload is refused.
+10. **Size cap** — over 15 MB is refused with `413` and the actual size reported.
+11. **Safe storage** — the original name is stripped to a basename, non-alphanumerics
+    are replaced, and the file is written as `<uuid-hex>__<safe-name>`. A caller cannot
+    choose the path, overwrite another file, or escape the upload directory.
+
+## Stage 3 — Get text out of the file
+
+12. **PDF?** Open it with PyMuPDF and read the embedded text layer.
+13. If that text is **40 characters or longer**, it is a real digital PDF. Use it
+    directly: exact characters, no OCR error, effectively instant.
+14. If it is shorter, the PDF is a **scan**. Rasterise each page at **200 dpi**
+    (first 5 pages) and run OCR over the images.
+15. **Image?** Send the bytes straight to OCR.
+16. OCR is **RapidOCR on ONNXRuntime** — runs locally, no external API, no key, no data
+    leaving the machine. The engine is built once and cached, so only the first call
+    pays the model-load cost.
+17. The method actually used (`PDF_TEXT_LAYER`, `OCR_SCANNED_PDF`, `OCR_IMAGE`), the
+    engine name, page count and mean confidence are all returned and displayed.
+
+## Stage 4 — Parse the fields
+
+OCR output is noisy. It routinely emits `Inte rest`, `AlC TE` and `BANKOFINDIA`.
+So **every label lookup runs against a whitespace-stripped, upper-cased copy** of the
+text, which makes matching immune to that entire class of error.
+
+18. **IFSC** — matched against the statutory format `AAAA0NNNNNN` (4 letters, a zero,
+    6 alphanumerics). Tried label-anchored first (`IFSC:`), then as a bare pattern.
+19. **FDR number** — searched after `FDR NO`, `FDR NUMBER`, `FD NO`, `RECEIPT NO`,
+    `DEPOSIT NO`, `ACCOUNT NO`.
+20. **Label-boundary trimming** — because spaces are stripped, a captured value runs
+    into whatever label follows it (`SBI-DEL-2024-778231` + `IFSC`). Each captured
+    value is truncated at the first embedded field label.
+21. **Amount** — prefers a currency-marked figure (`₹`, `RS`, `INR`); otherwise falls
+    back to the largest comma-grouped number. Handles Indian grouping (`35,00,000.00`)
+    and repairs OCR-doubled decimal points.
+22. **Amount in words** — captured between `RUPEES` and `ONLY` when present.
+23. **Dates** — parses `dd/mm/yyyy`, `yyyy-mm-dd` and `10APRIL2024`. Issue and maturity
+    are found by their labels; if a label is missing but exactly two dates exist, the
+    earliest is treated as issue and the latest as maturity.
+24. **Tenure** — read from `N MONTHS` or `N YEARS`; if absent, **derived** from the gap
+    between issue and maturity dates.
+25. **Interest rate** — first percentage found, sanity-bounded to `0 < rate ≤ 20` so a
+    stray number cannot pass as a deposit rate.
+26. **Lien and joint holder** — requires both the word `LIEN` and an AICTE mention.
+    AICTE detection tolerates the usual OCR confusions (`I`/`l`/`1`, `O`/`0`), so
+    `AlC TE` still resolves.
+27. **A field that cannot be found returns `null`.** It is shown struck through as
+    *not detected*. **The system never invents a value.**
+
+## Stage 5 — Does this document belong to this institution?
+
+28. The extracted text is cross-checked against the institution selected in Stage 1,
+    ranked by evidence strength:
+    - **AICTE permanent ID present** → `MATCH` (strongest; IDs are unique)
+    - **Bracketed acronym present**, e.g. `(VJTI)` → `MATCH`
+    - **≥ 60 % of distinctive name words present** → `MATCH`
+    - **30–60 %** → `PARTIAL`, verify manually
+    - **below 30 %** → `NO_MATCH`
+29. Generic words — *Institute, College, Technology, Engineering, National, India* — are
+    **excluded** from scoring. They appear in most institution names and would otherwise
+    make everything look like a match.
+30. The verdict, score and **the exact evidence used** are shown, so an officer can
+    overrule the machine rather than trust it blindly.
+31. A `NO_MATCH` is **stored with the record** and resurfaces later as a critical
+    finding on the institution's compliance report.
+
+## Stage 6 — Officer reviews, then submits
+
+32. Detected values pre-fill the form; undetected ones stay blank.
+33. A per-field hit/miss report and the **raw extracted text** are both viewable.
+34. **Every value remains editable.** Extraction assists the officer; it never decides.
+35. On submit, the record is created with the document reference and the complete
+    extraction record attached for audit.
+
+## Stage 7 — Record created, provenance opened
+
+36. A duplicate **FDR receipt number** is rejected with `400`.
+37. Status is set to **`PENDING_VERIFICATION`**.
+38. Five provenance rows are opened — amount, maturity date, joint holder, lien status,
+    issuing bank — each tagged **`DECLARED`**. At this point every value is only a claim.
+39. A **cryptographically random one-time token** is minted with a **15-day expiry**.
+40. An audit block `FDR_SUBMITTED` is appended to the hash chain.
+41. An alert is raised to the AICTE officer.
+
+## Stage 8 — The bank is asked to confirm
+
+42. The token becomes a **secure link and a QR code**, addressed to the issuing bank's
+    nodal officer.
+43. The bank endpoint is **token-authenticated, not password-authenticated** — the bank
+    needs no portal account.
+44. Opening the request returns the **declared** values and the institution's details,
+    and reports whether the token has expired or was already used.
+
+## Stage 9 — The bank checks its own ledger and signs
+
+45. The nodal officer compares the declared values against the **Core Banking System**
+    record and enters what the bank actually holds.
+46. The submission is signed, producing a Class-3 DSC attestation record: signer DN,
+    issuing CA, certificate serial, timestamp, signature, OCSP status.
+47. Signer identity, bank, IFSC and employee ID are all captured with the signature.
+
+## Stage 10 — Field-by-field discrepancy detection
+
+The declared figures are compared against the bank's signed record. **Four checks:**
+
+48. **Amount** — flags `AMOUNT_MISMATCH` if the two differ by more than ₹1 (the
+    tolerance absorbs rounding, not shortfalls). Both figures are reported.
+49. **Maturity date** — flags `MATURITY_DATE_MISMATCH` on any difference.
+50. **Lien** — flags `LIEN_NOT_MARKED` if the bank does **not** confirm a lien in favour
+    of the Member Secretary, AICTE. *This is the check that catches an unencumbered
+    deposit being passed off as pledged.*
+51. **Joint holder** — flags `JOINT_NAME_MISMATCH` if the bank's account title does not
+    contain AICTE, quoting the title the bank actually holds.
+
+## Stage 11 — Trust tags are rewritten
+
+52. Each provenance row is updated with the bank's value and re-tagged:
+    - agrees with the declaration → **`BANK_CONFIRMED`**
+    - disagrees → **`MISMATCH`**, with a note recording the deviation
+53. **Only bank-confirmed data counts as verified.** A declaration never promotes itself.
+
+## Stage 12 — Outcome of attestation
+
+54. **Any discrepancy** → status **`FLAGGED_MISMATCH`**, every discrepancy listed, and a
+    **critical** alert raised to the AICTE officer.
+55. **Clean, and this is a renewal** → the replaced FDR is marked `RENEWED` and the new
+    one goes **`ACTIVE`**, completing the no-gap handover.
+56. **Clean, first submission** → **`BANK_CONFIRMED`**, awaiting officer scrutiny.
+57. An audit block `BANK_DSC_CONFIRMATION_SIGNED` records the certificate serial,
+    issuer and the discrepancy count.
+
+## Stage 13 — AICTE officer scrutiny
+
+58. The officer sees declared and bank-confirmed values **side by side** with trust tags.
+59. Three decisions, each requiring the officer's role (`403` otherwise):
+    **Approve → `ACTIVE`**, **Flag → `FLAGGED_MISMATCH`**, **Reject → `REJECTED`**.
+60. On approval every provenance row is promoted to **`OFFICER_VERIFIED`**.
+61. The decision, remarks and the officer's identity are hash-chained, and the bank is
+    notified of the outcome.
+
+## Stage 14 — Maturity watch
+
+62. The scheduler evaluates every live instrument and computes days to maturity.
+63. Alerts fire at **60 / 30 / 15 days**, escalating `INFO → WARNING → CRITICAL`.
+64. At **0 days** the instrument becomes `MATURED` and is reported as a lapse in cover.
+65. Duplicate alerts for the same instrument on the same day are suppressed.
+
+## Stage 15 — No-gap renewal
+
+66. A replacement FDR is filed against the maturing one; both are linked as a lineage.
+67. The old instrument moves to `RENEWAL_IN_PROGRESS` — **it is not closed**.
+68. **The old FDR is released only once the replacement is bank-confirmed** (step 55).
+    There is no window in which the institution is uncovered.
+69. The full renewal chain is preserved and displayed as *generation N of M*.
+
+## Stage 16 — Release and refund, under maker–checker
+
+70. The institution applies for release, stating the ground (tenure complete, etc.).
+71. A second application on an already-pending instrument is refused.
+72. **Stage 1 — Maker:** an AICTE officer verifies tenure and compliance, and either
+    recommends or rejects.
+73. **Stage 2 — Checker:** the Competent Authority sanctions or refuses. Only here is an
+    **official Lien Discharge Order reference** generated.
+74. Both stages require the AICTE role, and both are hash-chained with the officer's
+    identity and remarks. **One person cannot complete a release alone.**
+75. A printable Government-of-India-format discharge order is rendered for the bank.
+
+## Stage 17 — The bank clears the lien — end result
+
+76. The bank can execute a discharge **only when the release is `CHECKER_APPROVED`** —
+    attempting it earlier is refused. A bank cannot release a deposit on its own say-so.
+77. The bank clears the lien in CBS. The instrument becomes **`RELEASED`** and the
+    lien provenance row is updated to *Lien Discharged / Cleared*.
+78. `BANK_LIEN_DISCHARGE_EXECUTED` is hash-chained against the discharge order.
+79. The AICTE officer is notified that the cycle is complete. **The deposit is refunded
+    and the lifecycle closes.**
+
+## Running throughout — the audit chain
+
+80. Every submission, attestation, scrutiny decision, renewal, sanction, discharge and
+    official notice is appended as a block holding `payload_hash`, `previous_hash` and
+    `block_hash`.
+81. Editing any row directly in the database leaves the stored hashes stale, so
+    re-verification names **the exact block** that was altered.
+82. The portal ships a tamper-evidence test that demonstrates this live.
+
+## Running throughout — institution compliance
+
+Any institution can be opened for a consolidated position. **Ten checks** are declared
+per instrument, each with severity, a code and a plain-English explanation:
+
+| Code | Severity | Raised when |
+|---|---|---|
+| `AMOUNT_MISMATCH` | Critical | Declared and bank-confirmed principal differ |
+| `LIEN_NOT_MARKED` | Critical | Bank confirms no AICTE lien — deposit is unencumbered |
+| `JOINT_HOLDER_MISMATCH` | Critical | AICTE absent from the bank's account title |
+| `FLAGGED_INSTRUMENT` | Critical | Flagged during scrutiny |
+| `DOCUMENT_INSTITUTION_MISMATCH` | Critical | Uploaded document names a different college |
+| `MATURED_NOT_RENEWED` | Critical | Matured with no bank-confirmed replacement |
+| `MISSING_DOCUMENT` | Warning | No source instrument on file |
+| `MATURITY_MISMATCH` | Warning | Declared and bank maturity dates differ |
+| `PROVENANCE_MISMATCH` | Warning | Any field disagrees with the bank record |
+| `EXPIRING_SOON` | Warning | Matures within 60 days |
+| `AWAITING_BANK_VERIFICATION` | Info | Not yet DSC-attested |
+
+The institution is then rated **Compliant**, **Attention Required** or **Non-Compliant**,
+alongside document-upload coverage, bank-verification coverage, declared-versus-confirmed
+totals and live deposit cover.
+
+---
+
 ## Bank attestation and digital signature
 
 ```mermaid

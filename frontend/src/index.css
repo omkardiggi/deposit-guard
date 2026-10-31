@@ -1,0 +1,34 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased font-sans;
+  }
+}
+
+/* Custom styles for official AICTE portal */
+.portal-gradient {
+  background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 50%, #1E293B 100%);
+}
+
+.saffron-gradient {
+  background: linear-gradient(90deg, #FF9933 0%, #FF6F00 100%);
+}
+
+.badge-declared {
+  @apply bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-xs font-semibold;
+}
+
+.badge-bank-confirmed {
+  @apply bg-emerald-50 text-emerald-700 border border-emerald-300 px-2 py-0.5 rounded text-xs font-semibold;
+}
+
+.badge-officer-verified {
+  @apply bg-blue-50 text-blue-700 border border-blue-300 px-2 py-0.5 rounded text-xs font-semibold;
+}
+
+.badge-mismatch {
+  @apply bg-rose-50 text-rose-700 border border-rose-300 px-2 py-0.5 rounded text-xs font-semibold;
+}

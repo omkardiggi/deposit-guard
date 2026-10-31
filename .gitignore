@@ -19,6 +19,7 @@ Thumbs.db
 
 # Uploaded FDR documents (runtime artifacts)
 backend/uploads/
+backend/app/uploads/
 
 # SQLite database (generated + reseeded on first run)
 backend/*.db

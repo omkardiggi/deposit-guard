@@ -40,11 +40,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Role-Specific Navigation Menus
   const aicteNavItems = [
     { id: 'dashboard', label: 'Overview & Analytics', icon: LayoutDashboard },
+    { id: 'institutions', label: 'Institution Registry', icon: Building2 },
     { id: 'repository', label: 'Centralized FDR Registry', icon: Database },
     { id: 'no-gap-renewal', label: 'No-Gap Renewal Watch', icon: RefreshCw },
     { id: 'lien-release', label: 'Lien Release Sanction Desk', icon: FileCheck2 },
     { id: 'messages', label: 'Official Bank Notices', icon: MessageSquare, badge: unreadMessageCount },
-    { id: 'audit-trail', label: 'Tamper-Proof Audit Ledger', icon: Lock },
+    { id: 'audit-trail', label: 'Audit Ledger', icon: Lock },
   ];
 
   const bankNavItems = [
@@ -52,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'repository', label: 'Bank Branch FDR Registry', icon: Database },
     { id: 'lien-release', label: 'CBS Lien Discharge Desk', icon: FileCheck2 },
     { id: 'messages', label: 'AICTE Direct Notices', icon: MessageSquare, badge: unreadMessageCount },
-    { id: 'audit-trail', label: 'DSC Attestation Logs', icon: Lock },
+    { id: 'audit-trail', label: 'Audit Ledger', icon: Lock },
   ];
 
   const navItems = isAicte ? aicteNavItems : bankNavItems;
@@ -158,3 +159,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </aside>
   );
 };
+

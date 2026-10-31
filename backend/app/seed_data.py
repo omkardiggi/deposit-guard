@@ -18,16 +18,16 @@ def seed_database():
 
     pwd = hash_password("password123")
     
-    # Exactly two core user personas:
+    # Exactly two core user personas (role-based official identities):
     # 1. AICTE Officer
     user_aicte = User(
         username="aicte_officer",
         password_hash=pwd,
         role="AICTE_OFFICER",
-        full_name="Dr. Rajesh Sharma",
-        designation="Director & Nodal Authority",
+        full_name="AICTE Regulation Bureau Officer",
+        designation="Regulation Bureau — Approval Compliance Authority",
         department="Regulation Bureau, AICTE New Delhi",
-        email="rajesh.sharma@aicte.gov.in",
+        email="regulation.bureau@aicte.gov.in",
         phone="+91 11 2958 1000"
     )
     # 2. Bank Officer
@@ -35,11 +35,11 @@ def seed_database():
         username="bank_officer",
         password_hash=pwd,
         role="BANK_OFFICER",
-        full_name="S. Ramesh",
-        designation="Chief Manager & Nodal Officer (Govt Accounts)",
+        full_name="Bank Nodal Officer",
+        designation="Nodal Officer — Institutional Accounts & CBS Lien Cell",
         bank_name="State Bank of India",
         department="Institutional Accounts & CBS Lien Cell",
-        email="s.ramesh@sbi.co.in",
+        email="nodal.officer@sbi.co.in",
         phone="+91 22 2274 0000"
     )
     
@@ -54,7 +54,7 @@ def seed_database():
         state="Maharashtra",
         city="Mumbai",
         address="H. R. Mahajani Road, Matunga, Mumbai 400019",
-        contact_person="Dr. Sachin Deshmukh (Registrar)",
+        contact_person="Registrar",
         email="registrar@vjti.ac.in",
         phone="+91 22 24198101"
     )
@@ -65,7 +65,7 @@ def seed_database():
         state="Delhi",
         city="New Delhi",
         address="Sector 12, Dwarka, New Delhi 110078",
-        contact_person="Prof. K. K. Aggarwal",
+        contact_person="Principal",
         email="principal@dietdelhi.edu.in",
         phone="+91 11 25099001"
     )
@@ -76,7 +76,7 @@ def seed_database():
         state="Karnataka",
         city="Bengaluru",
         address="Mysore Road, RV Vidyaniketan, Bengaluru 560059",
-        contact_person="Dr. K. N. Subramanya (Principal)",
+        contact_person="Principal",
         email="principal@rvce.edu.in",
         phone="+91 80 68188100"
     )
@@ -87,7 +87,7 @@ def seed_database():
         state="Tamil Nadu",
         city="Coimbatore",
         address="Post Box No. 1611, Peelamedu, Coimbatore 641004",
-        contact_person="Dr. K. Prakasan",
+        contact_person="Principal",
         email="principal@psgtech.edu",
         phone="+91 422 2572177"
     )
@@ -98,7 +98,7 @@ def seed_database():
         state="Uttar Pradesh",
         city="Noida",
         address="A-8B, IMS Campus, Sector 62, Noida 201301",
-        contact_person="Dr. Manju Gupta",
+        contact_person="Director",
         email="director@imsnoida.com",
         phone="+91 120 4798800"
     )
@@ -280,7 +280,7 @@ def seed_database():
     # Bank DSC Verification Records
     dsc1 = generate_dsc_attestation(
         bank_name="State Bank of India",
-        officer_name="S. Ramesh",
+        officer_name="Bank Nodal Officer",
         officer_empid="SBI-OFF-7821",
         fdr_payload={"fdr": fdr1.fdr_number, "amt": 3500000.0}
     )
@@ -289,9 +289,9 @@ def seed_database():
         token=fdr1.verification_token,
         bank_name="State Bank of India",
         branch_ifsc="SBIN0000523",
-        nodal_officer_name="S. Ramesh",
+        nodal_officer_name="Bank Nodal Officer",
         nodal_officer_emp_id="SBI-OFF-7821",
-        nodal_officer_email="s.ramesh@sbi.co.in",
+        nodal_officer_email="nodal.officer@sbi.co.in",
         confirmed_amount=3500000.0,
         confirmed_maturity_date=future_5_years,
         confirmed_lien_to_aicte=True,
@@ -307,7 +307,7 @@ def seed_database():
 
     dsc4 = generate_dsc_attestation(
         bank_name="Bank of Baroda",
-        officer_name="K. V. Ramanathan",
+        officer_name="Bank Nodal Officer",
         officer_empid="BOB-OFF-3391",
         fdr_payload={"fdr": fdr4.fdr_number, "amt": 2000000.0}
     )
@@ -316,9 +316,9 @@ def seed_database():
         token=fdr4.verification_token,
         bank_name="Bank of Baroda",
         branch_ifsc="BARB0PEELAM",
-        nodal_officer_name="K. V. Ramanathan",
+        nodal_officer_name="Bank Nodal Officer",
         nodal_officer_emp_id="BOB-OFF-3391",
-        nodal_officer_email="kv.ramanathan@bankofbaroda.co.in",
+        nodal_officer_email="nodal.officer@bankofbaroda.co.in",
         confirmed_amount=2000000.0,
         confirmed_maturity_date=future_3_years,
         confirmed_lien_to_aicte=False,
@@ -384,7 +384,7 @@ def seed_database():
         db=db,
         action="INSTITUTION_REGISTERED",
         actor_role="AICTE_OFFICER",
-        actor_name="Dr. Rajesh Sharma",
+        actor_name="AICTE Regulation Bureau Officer",
         entity_type="INSTITUTION",
         entity_id=inst1.id,
         details={"aicte_id": inst1.aicte_id, "name": inst1.name, "state": inst1.state}
@@ -402,7 +402,7 @@ def seed_database():
         db=db,
         action="BANK_DSC_CONFIRMATION_SIGNED",
         actor_role="BANK_OFFICER",
-        actor_name="S. Ramesh (State Bank of India)",
+        actor_name="Bank Nodal Officer (State Bank of India)",
         entity_type="FDR",
         entity_id=fdr1.id,
         details={"fdr_number": fdr1.fdr_number, "amount_confirmed": 3500000.0, "lien_status": "Lien Active to AICTE", "dsc_serial": dsc1["cert_serial"]}
@@ -411,7 +411,7 @@ def seed_database():
         db=db,
         action="OFFICER_SCRUTINY_ACTIVE",
         actor_role="AICTE_OFFICER",
-        actor_name="Dr. Rajesh Sharma (Director)",
+        actor_name="AICTE Regulation Bureau Officer",
         entity_type="FDR",
         entity_id=fdr1.id,
         details={"fdr_number": fdr1.fdr_number, "status": "ACTIVE", "remarks": "Compliant with Approval Process Handbook"}
@@ -421,9 +421,9 @@ def seed_database():
     msg1 = Message(
         sender_id=user_aicte.id,
         sender_role="AICTE_OFFICER",
-        sender_name="Dr. Rajesh Sharma (AICTE Regulation Bureau)",
+        sender_name="AICTE Regulation Bureau Officer",
         recipient_role="BANK_OFFICER",
-        recipient_name="S. Ramesh (State Bank of India Nodal Cell)",
+        recipient_name="Bank Nodal Officer (State Bank of India)",
         fdr_id=fdr4.id,
         fdr_number=fdr4.fdr_number,
         subject="Discrepancy Notice & Lien Rectification on FDR #BOB-CBE-2025-772910",
@@ -435,9 +435,9 @@ def seed_database():
     msg2 = Message(
         sender_id=user_bank.id,
         sender_role="BANK_OFFICER",
-        sender_name="S. Ramesh (Chief Manager, State Bank of India)",
+        sender_name="Bank Nodal Officer (State Bank of India)",
         recipient_role="AICTE_OFFICER",
-        recipient_name="Dr. Rajesh Sharma (Director, AICTE)",
+        recipient_name="AICTE Regulation Bureau Officer",
         fdr_id=fdr1.id,
         fdr_number=fdr1.fdr_number,
         subject="Confirmation of Joint Lien Marking & DSC Attestation - VJTI Mumbai",

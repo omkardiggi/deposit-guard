@@ -127,7 +127,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
             {/* 1-Click Fast Login Cards for Both Roles */}
             <div className="space-y-3">
               <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Select Stakeholder Role (Pre-configured Credentials):
+                Select your designated role to sign in:
               </div>
 
               {/* AICTE Officer Card */}
@@ -137,9 +137,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     <UserCheck className="w-4 h-4" />
                     AICTE Regulation Bureau Officer
                   </div>
-                  <div className="text-slate-300 font-semibold">Dr. Rajesh Sharma</div>
-                  <div className="text-[11px] font-mono text-slate-400">
-                    User: <span className="text-white">aicte_officer</span> &bull; Pass: <span className="text-white">password123</span>
+                  <div className="text-[11px] text-slate-400">
+                    Approval Compliance Authority &bull; Regulation Bureau, AICTE
                   </div>
                 </div>
                 <button
@@ -159,9 +158,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
                     <Landmark className="w-4 h-4" />
                     Issuing Bank Nodal Officer
                   </div>
-                  <div className="text-slate-300 font-semibold">S. Ramesh (State Bank of India)</div>
-                  <div className="text-[11px] font-mono text-slate-400">
-                    User: <span className="text-white">bank_officer</span> &bull; Pass: <span className="text-white">password123</span>
+                  <div className="text-[11px] text-slate-400">
+                    State Bank of India &bull; Institutional Accounts &amp; CBS Lien Cell
                   </div>
                 </div>
                 <button
@@ -248,3 +246,4 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess }) => {
     </div>
   );
 };
+

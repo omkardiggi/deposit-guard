@@ -14,18 +14,20 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { LienRelease, User, FDR } from '../types';
-import { api } from '../services/api';
+import { api, API_ORIGIN } from '../services/api';
 
 interface LienReleaseDeskViewProps {
   currentUser: User;
   onRefreshData: () => void;
   fdrs: FDR[];
+  refreshKey?: number;
 }
 
 export const LienReleaseDeskView: React.FC<LienReleaseDeskViewProps> = ({
   currentUser,
   onRefreshData,
-  fdrs
+  fdrs,
+  refreshKey = 0,
 }) => {
   const [releases, setReleases] = useState<LienRelease[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,7 @@ export const LienReleaseDeskView: React.FC<LienReleaseDeskViewProps> = ({
 
   useEffect(() => {
     fetchReleases();
-  }, []);
+  }, [refreshKey]);
 
   const handleMakerDecision = async (decision: 'RECOMMEND' | 'REJECT') => {
     if (!selectedRelease) return;
@@ -68,7 +70,7 @@ export const LienReleaseDeskView: React.FC<LienReleaseDeskViewProps> = ({
         release_id: selectedRelease.id,
         decision,
         remarks: makerRemarks || (decision === 'RECOMMEND' ? 'Tenure norms and compliance conditions verified satisfactory.' : 'Deficiency observed in compliance filing.')
-      }, 'demo_token');
+      });
       setNotification(`Maker decision '${decision}' successfully recorded and forwarded.`);
       await fetchReleases();
       onRefreshData();
@@ -87,7 +89,7 @@ export const LienReleaseDeskView: React.FC<LienReleaseDeskViewProps> = ({
         release_id: selectedRelease.id,
         decision,
         remarks: checkerRemarks || (decision === 'APPROVE' ? 'Sanctioned. Issue official AICTE Lien Discharge Order.' : 'Rejected by Competent Authority.')
-      }, 'demo_token');
+      });
       setNotification(`Competent Authority Sanction Granted! Order Ref: ${res.discharge_order_ref}`);
       await fetchReleases();
       onRefreshData();
@@ -113,7 +115,7 @@ export const LienReleaseDeskView: React.FC<LienReleaseDeskViewProps> = ({
   };
 
   const handleOpenLetter = (releaseId: string) => {
-    window.open(`http://localhost:8000/api/release/${releaseId}/letter`, '_blank');
+    window.open(`${API_ORIGIN}/api/release/${releaseId}/letter`, '_blank');
   };
 
   const handleApplyReleaseSubmit = async (e: React.FormEvent) => {

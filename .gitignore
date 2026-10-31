@@ -16,3 +16,17 @@ dist/
 .DS_Store
 Thumbs.db
 
+
+# Uploaded FDR documents (runtime artifacts)
+backend/uploads/
+
+# SQLite database (generated + reseeded on first run)
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# Local environment overrides
+.env
+.env.local
+frontend/.env
+frontend/.env.local

@@ -81,6 +81,8 @@ class FDR(Base):
     status_remarks = Column(Text, nullable=True)
     document_path = Column(String, nullable=True)
     document_filename = Column(String, nullable=True)
+    # JSON record of what OCR / text extraction read off the uploaded instrument
+    ocr_extract = Column(Text, nullable=True)
     
     previous_fdr_id = Column(String, ForeignKey("fdrs.id"), nullable=True)
     replacement_fdr_id = Column(String, nullable=True)

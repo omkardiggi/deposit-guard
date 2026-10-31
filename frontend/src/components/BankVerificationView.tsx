@@ -35,11 +35,13 @@ export const BankVerificationView: React.FC<BankVerificationViewProps> = ({
   const [successResult, setSuccessResult] = useState<any | null>(null);
 
   // Verification Form State
-  const [nodalOfficerName, setNodalOfficerName] = useState(currentUser.full_name || 'S. Ramesh');
-  const [nodalOfficerEmpId, setNodalOfficerEmpId] = useState('SBI-OFF-7821');
-  const [nodalOfficerEmail, setNodalOfficerEmail] = useState(currentUser.email || 's.ramesh@sbi.co.in');
-  const [bankName, setBankName] = useState('State Bank of India');
-  const [branchIfsc, setBranchIfsc] = useState('SBIN0000523');
+  // Officer identity comes from the signed-in user; bank and IFSC are filled
+  // from the verification request itself once the token is loaded.
+  const [nodalOfficerName, setNodalOfficerName] = useState(currentUser.full_name || '');
+  const [nodalOfficerEmpId, setNodalOfficerEmpId] = useState('');
+  const [nodalOfficerEmail, setNodalOfficerEmail] = useState(currentUser.email || '');
+  const [bankName, setBankName] = useState('');
+  const [branchIfsc, setBranchIfsc] = useState('');
   const [confirmedAmount, setConfirmedAmount] = useState<number>(0);
   const [confirmedMaturityDate, setConfirmedMaturityDate] = useState('');
   const [confirmedJointHolder, setConfirmedJointHolder] = useState('Jointly with Member Secretary, AICTE, New Delhi');
@@ -300,6 +302,7 @@ export const BankVerificationView: React.FC<BankVerificationViewProps> = ({
                     type="text"
                     value={nodalOfficerEmpId}
                     onChange={(e) => setNodalOfficerEmpId(e.target.value)}
+                    placeholder="Your bank employee ID"
                     required
                     className="w-full p-2 bg-white border border-slate-300 rounded-lg"
                   />

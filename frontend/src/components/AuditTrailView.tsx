@@ -18,9 +18,10 @@ import { api } from '../services/api';
 
 interface AuditTrailViewProps {
   currentUser: User;
+  refreshKey?: number;
 }
 
-export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ currentUser }) => {
+export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ currentUser, refreshKey = 0 }) => {
   const [blocks, setBlocks] = useState<AuditBlock[]>([]);
   const [verificationResult, setVerificationResult] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
@@ -81,7 +82,7 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ currentUser }) =
   useEffect(() => {
     fetchChain();
     handleVerify();
-  }, []);
+  }, [refreshKey]);
 
   const isChainValid = verificationResult?.is_valid;
 

@@ -44,15 +44,15 @@ def send_message(
         sender_role = current_user.role
         sender_name = current_user.full_name
     else:
-        # Default based on recipient
+        # Fallback sender identity (role-based) when no authenticated token is present
         if payload.recipient_role == "BANK_OFFICER":
             sender_id = "user-aicte-01"
             sender_role = "AICTE_OFFICER"
-            sender_name = "Dr. Rajesh Sharma (AICTE Regulation Bureau)"
+            sender_name = "AICTE Regulation Bureau Officer"
         else:
             sender_id = "user-bank-01"
             sender_role = "BANK_OFFICER"
-            sender_name = "S. Ramesh (State Bank of India)"
+            sender_name = "Bank Nodal Officer"
 
     recipient_name = payload.recipient_name or ("Issuing Bank Nodal Officer" if payload.recipient_role == "BANK_OFFICER" else "AICTE Regulation Bureau Officer")
 

@@ -10,11 +10,22 @@ router = APIRouter(prefix="/api/alerts", tags=["Smart Maturity Watch & Alerts"])
 
 @router.get("", response_model=List[NotificationResponse])
 def get_alerts(
+    recipient: Optional[str] = None,
     institution_id: Optional[str] = None,
     unread_only: bool = False,
     db: Session = Depends(get_db)
 ):
     query = db.query(NotificationAlert)
+
+    if recipient:
+        # Scope alerts to the signed-in persona. The AICTE officer also sees
+        # bureau-wide and institution/maturity alerts; the bank officer sees
+        # only alerts explicitly routed to the bank nodal cell.
+        if recipient == "AICTE_OFFICER":
+            query = query.filter(NotificationAlert.recipient != "BANK_OFFICER")
+        else:
+            query = query.filter(NotificationAlert.recipient == recipient)
+
     if institution_id:
         query = query.filter(NotificationAlert.institution_id == institution_id)
     if unread_only:

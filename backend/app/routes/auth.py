@@ -54,8 +54,8 @@ def get_me(current_user: User = Depends(require_auth)):
         "department": current_user.department
     }
 
-@router.get("/demo-users")
-def list_demo_users(db: Session = Depends(get_db)):
+@router.get("/accounts")
+def list_accounts(db: Session = Depends(get_db)):
     """Returns the two authorized portal accounts: AICTE Officer & Bank Officer."""
     users = db.query(User).all()
     return [

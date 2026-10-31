@@ -9,16 +9,22 @@ import { NoGapRenewalView } from './components/NoGapRenewalView';
 import { LienReleaseDeskView } from './components/LienReleaseDeskView';
 import { AuditTrailView } from './components/AuditTrailView';
 import { MessagesView } from './components/MessagesView';
+import { InstitutionsView } from './components/InstitutionsView';
+import { InstitutionDetailModal } from './components/InstitutionDetailModal';
 import { NewFDRModal } from './components/NewFDRModal';
 import { FDRDetailsModal } from './components/FDRDetailsModal';
 import { BankQRModal } from './components/BankQRModal';
 import { AlertsDrawer } from './components/AlertsDrawer';
 import { FDR, Institution, User, NotificationAlert, DashboardStats, Message } from './types';
-import { api } from './services/api';
+import { api, auth } from './services/api';
 
 export function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  // Restore a persisted session (real JWT + user) so a page refresh keeps the officer signed in.
+  const persistedUser = auth.getToken() ? (auth.getUser() as User | null) : null;
+  const [currentUser, setCurrentUser] = useState<User | null>(persistedUser);
+  const [activeTab, setActiveTab] = useState<string>(
+    persistedUser && persistedUser.role === 'BANK_OFFICER' ? 'bank-portal' : 'dashboard'
+  );
   const [fdrs, setFdrs] = useState<FDR[]>([]);
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [alerts, setAlerts] = useState<NotificationAlert[]>([]);
@@ -33,8 +39,15 @@ export function App() {
   const [selectedBankToken, setSelectedBankToken] = useState<string | undefined>(undefined);
   const [preSelectedRenewalFDR, setPreSelectedRenewalFDR] = useState<FDR | null>(null);
 
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState<string | null>(null);
+
   const [isSchedulerRunning, setIsSchedulerRunning] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Bumped after every successful data load. Views that fetch their own data
+  // (institution summary, FDR dossier, releases, messages, audit chain) take
+  // this as a dependency, so one change anywhere refreshes everything.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -46,7 +59,7 @@ export function App() {
       const [fdrsData, statsData, alertsData, instsData] = await Promise.all([
         api.getFDRs(),
         api.getDashboardStats(),
-        api.getAlerts(),
+        api.getAlerts(currentUser ? { recipient: currentUser.role } : undefined),
         api.getInstitutions()
       ]);
       setFdrs(fdrsData);
@@ -58,6 +71,8 @@ export function App() {
         const msgs = await api.getMessages({ role: currentUser.role });
         setMessages(msgs);
       }
+      // Signal every self-fetching view to reload too.
+      setRefreshKey(k => k + 1);
     } catch (err) {
       console.error('Error loading data:', err);
     }
@@ -74,21 +89,9 @@ export function App() {
   };
 
   const handleLogout = () => {
+    api.logout();
     setCurrentUser(null);
     showToast('Signed out successfully.');
-  };
-
-  const handleSwitchRole = async () => {
-    if (!currentUser) return;
-    const targetUsername = currentUser.role === 'AICTE_OFFICER' ? 'bank_officer' : 'aicte_officer';
-    try {
-      const res = await api.login(targetUsername, 'password123');
-      setCurrentUser(res.user);
-      setActiveTab(res.user.role === 'AICTE_OFFICER' ? 'dashboard' : 'bank-portal');
-      showToast(`Switched persona to: ${res.user.full_name} (${res.user.role === 'AICTE_OFFICER' ? 'AICTE Officer' : 'Bank Officer'})`);
-    } catch (err: any) {
-      console.error(err);
-    }
   };
 
   const handleRunScheduler = async () => {
@@ -172,7 +175,6 @@ export function App() {
         {/* Header */}
         <Header
           currentUser={currentUser}
-          onSwitchRole={handleSwitchRole}
           onLogout={handleLogout}
           onOpenAlerts={() => setIsAlertsDrawerOpen(true)}
           unreadAlertCount={unreadAlertCount}
@@ -193,6 +195,14 @@ export function App() {
               onNavigateTab={setActiveTab}
               onSelectFDR={handleSelectFDRById}
               isSchedulerRunning={isSchedulerRunning}
+            />
+          )}
+
+          {activeTab === 'institutions' && (
+            <InstitutionsView
+              institutions={institutions}
+              fdrs={fdrs}
+              onSelectInstitution={(id) => setSelectedInstitutionId(id)}
             />
           )}
 
@@ -231,6 +241,7 @@ export function App() {
               currentUser={currentUser}
               onRefreshData={loadData}
               fdrs={fdrs}
+              refreshKey={refreshKey}
             />
           )}
 
@@ -239,11 +250,12 @@ export function App() {
               currentUser={currentUser}
               fdrs={fdrs}
               onRefreshData={loadData}
+              refreshKey={refreshKey}
             />
           )}
 
           {activeTab === 'audit-trail' && (
-            <AuditTrailView currentUser={currentUser} />
+            <AuditTrailView currentUser={currentUser} refreshKey={refreshKey} />
           )}
         </main>
 
@@ -261,6 +273,13 @@ export function App() {
       </div>
 
       {/* Modals & Drawers */}
+      <InstitutionDetailModal
+        institutionId={selectedInstitutionId}
+        onClose={() => setSelectedInstitutionId(null)}
+        onOpenFDR={(id) => { setSelectedInstitutionId(null); handleSelectFDRById(id); }}
+        refreshKey={refreshKey}
+      />
+
       <NewFDRModal
         isOpen={isNewFDRModalOpen}
         onClose={() => setIsNewFDRModalOpen(false)}
@@ -274,6 +293,7 @@ export function App() {
         currentUser={currentUser}
         onOpenQR={handleOpenBankQR}
         onRefreshData={loadData}
+        refreshKey={refreshKey}
       />
 
       <BankQRModal

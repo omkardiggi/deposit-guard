@@ -22,12 +22,14 @@ interface MessagesViewProps {
   currentUser: User;
   fdrs: FDR[];
   onRefreshData: () => void;
+  refreshKey?: number;
 }
 
 export const MessagesView: React.FC<MessagesViewProps> = ({
   currentUser,
   fdrs,
   onRefreshData,
+  refreshKey = 0,
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
 
   useEffect(() => {
     fetchMessages();
-  }, [currentUser.role]);
+  }, [currentUser.role, refreshKey]);
 
   const handleMarkRead = async (id: string) => {
     try {
@@ -76,7 +78,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
     setSubmitting(true);
 
     const recipientRole = isAicte ? 'BANK_OFFICER' : 'AICTE_OFFICER';
-    const recipientName = isAicte ? 'S. Ramesh (State Bank of India Nodal Cell)' : 'Dr. Rajesh Sharma (AICTE Regulation Bureau)';
+    const recipientName = isAicte ? 'Bank Nodal Officer (State Bank of India)' : 'AICTE Regulation Bureau Officer';
     const linkedFdr = fdrs.find(f => f.id === selectedFdrId);
 
     try {
@@ -283,7 +285,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
                   {isAicte ? 'Dispatch Official Notice to Bank Officer' : 'Dispatch Communication to AICTE Bureau'}
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Recipient: <strong>{isAicte ? 'Bank Nodal Officer (State Bank of India)' : 'AICTE Regulation Bureau Officer'}</strong>
+                  Recipient: <strong>{isAicte ? 'Bank Nodal Officer, State Bank of India' : 'AICTE Regulation Bureau Officer'}</strong>
                 </p>
               </div>
               <button onClick={() => setIsComposeOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">&times;</button>
@@ -377,3 +379,4 @@ export const MessagesView: React.FC<MessagesViewProps> = ({
     </div>
   );
 };
+

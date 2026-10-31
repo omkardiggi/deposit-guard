@@ -1,10 +1,9 @@
 import React from 'react';
-import { ShieldCheck, Bell, RefreshCw, MessageSquare, Landmark, UserCheck, ArrowLeftRight, LogOut } from 'lucide-react';
+import { ShieldCheck, Bell, RefreshCw, MessageSquare, Landmark, LogOut } from 'lucide-react';
 import { User } from '../types';
 
 interface HeaderProps {
   currentUser: User;
-  onSwitchRole: () => void;
   onLogout: () => void;
   onOpenAlerts: () => void;
   unreadAlertCount: number;
@@ -15,7 +14,6 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   currentUser,
-  onSwitchRole,
   onLogout,
   onOpenAlerts,
   unreadAlertCount,
@@ -73,20 +71,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center space-x-2.5">
-          {/* Quick Role Switcher Button */}
-          <button
-            onClick={onSwitchRole}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
-              isAicte
-                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
-                : 'bg-blue-50 hover:bg-blue-100 text-blue-800 border-blue-300'
-            }`}
-            title="Switch between AICTE Officer and Bank Officer"
-          >
-            <ArrowLeftRight className="w-3.5 h-3.5" />
-            Switch to {isAicte ? 'Bank Officer' : 'AICTE Officer'}
-          </button>
-
           {/* Messages Button with Live Unread Badge */}
           <button
             onClick={onNavigateToMessages}

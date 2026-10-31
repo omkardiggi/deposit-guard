@@ -77,6 +77,9 @@ def apply_lien_release(
         status="PENDING_MAKER"
     )
     db.add(release)
+    # Flush so the UUID primary key is assigned before it is referenced by the
+    # audit block below (audit_blocks.entity_id is NOT NULL).
+    db.flush()
 
     fdr.status = "RELEASE_REQUESTED"
     fdr.status_remarks = "Institution applied for Lien Release & Refund. Pending AICTE Officer scrutiny."

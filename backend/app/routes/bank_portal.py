@@ -1,4 +1,5 @@
 import io
+import os
 import json
 import base64
 import pyqrcode
@@ -244,13 +245,18 @@ def generate_token_qr(token: str):
     """
     Generates a base64 encoded PNG QR code data URI pointing to the bank verification page.
     """
-    qr = pyqrcode.create(f"http://localhost:5173/bank-verify?token={token}")
+    # Portal origin the QR points at. Set PORTAL_BASE_URL in the environment
+    # when deploying so scanned codes resolve to the hosted portal.
+    portal_base = os.getenv("PORTAL_BASE_URL", "http://localhost:5173").rstrip("/")
+    verification_url = f"{portal_base}/bank-verify?token={token}"
+
+    qr = pyqrcode.create(verification_url)
     buffer = io.BytesIO()
     qr.png(buffer, scale=6)
     png_base64 = base64.b64encode(buffer.getvalue()).decode()
     return {
         "token": token,
         "qr_image_data_uri": f"data:image/png;base64,{png_base64}",
-        "verification_url": f"http://localhost:5173/bank-verify?token={token}"
+        "verification_url": verification_url
     }
 

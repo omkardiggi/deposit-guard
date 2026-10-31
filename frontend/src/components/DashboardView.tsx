@@ -14,6 +14,7 @@ import {
   BadgeAlert
 } from 'lucide-react';
 import { DashboardStats, NotificationAlert, User } from '../types';
+import { API_ORIGIN } from '../services/api';
 
 interface DashboardViewProps {
   stats: DashboardStats | null;
@@ -74,7 +75,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Submit New FDR
             </button>
             <a
-              href="http://localhost:8000/api/dashboard/export-csv"
+              href={`${API_ORIGIN}/api/dashboard/export-csv`}
               download
               className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3.5 py-2.5 rounded-xl text-xs transition-all border border-slate-700 flex items-center gap-1.5"
             >

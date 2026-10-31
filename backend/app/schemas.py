@@ -110,7 +110,9 @@ class FDRCreate(BaseModel):
     declared_joint_holder: str = "Jointly with Member Secretary, AICTE, New Delhi"
     declared_lien: bool = True
     auto_renewal_clause: bool = False
-    document_filename: Optional[str] = "fdr_original_scan.pdf"
+    document_filename: Optional[str] = None
+    document_path: Optional[str] = None
+    ocr_extract: Optional[str] = None
 
 class FDRRenewCreate(BaseModel):
     previous_fdr_id: str
@@ -125,7 +127,9 @@ class FDRRenewCreate(BaseModel):
     interest_rate: float = 7.1
     declared_joint_holder: str = "Jointly with Member Secretary, AICTE, New Delhi"
     auto_renewal_clause: bool = False
-    document_filename: Optional[str] = "fdr_renewal_receipt.pdf"
+    document_filename: Optional[str] = None
+    document_path: Optional[str] = None
+    ocr_extract: Optional[str] = None
 
 class FDRResponse(BaseModel):
     id: str
@@ -154,6 +158,7 @@ class FDRResponse(BaseModel):
     status_remarks: Optional[str] = None
     document_path: Optional[str] = None
     document_filename: Optional[str] = None
+    ocr_extract: Optional[str] = None
     previous_fdr_id: Optional[str] = None
     replacement_fdr_id: Optional[str] = None
     verification_token: str

@@ -2,7 +2,6 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from .database import engine, Base
 from .seed_data import seed_database
@@ -16,6 +15,7 @@ from .routes import (
     audit,
     alerts,
     dashboard,
+    messages,
 )
 
 @asynccontextmanager
@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="DepositGuard: Centralized Security Deposit & FDR Management Portal",
-    description="Official AICTE Regulation Bureau & Bank Verification System for Security Deposits and FDRs (SIH 2026 - Problem SIH26265)",
+    description="Official AICTE Regulation Bureau & Bank Verification System for Security Deposits and FDRs",
     version="2.4.0",
     lifespan=lifespan
 )
@@ -52,22 +52,22 @@ app.include_router(release.router)
 app.include_router(audit.router)
 app.include_router(alerts.router)
 app.include_router(dashboard.router)
+app.include_router(messages.router)
 
 # Health & Root Check
 @app.get("/")
 def root():
     return {
-        "system": "DepositGuard: AICTE Security Deposit & FDR Portal",
+        "system": "DepositGuard: Centralized Security Deposit & FDR Management Portal",
         "version": "2.4.0",
-        "organization": "All India Council for Technical Education (AICTE), Ministry of Education, GoI",
-        "team": "CODECREWW$ (Team ID: 199121)",
-        "problem_statement": "SIH26265 - Streamline of Security Deposit / FDR Portal",
+        "organization": "All India Council for Technical Education (AICTE), Ministry of Education, Government of India",
+        "stakeholders": ["AICTE Regulation Bureau", "Issuing Banks (Nodal Cells)"],
         "status": "OPERATIONAL",
         "endpoints": {
             "docs": "/docs",
-            "redoc": "/redoc",
             "dashboard_stats": "/api/dashboard/stats",
             "fdr_registry": "/api/fdrs",
+            "messages": "/api/messages",
             "audit_chain": "/api/audit/chain"
         }
     }

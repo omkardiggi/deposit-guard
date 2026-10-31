@@ -1,33 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import confetti from 'canvas-confetti';
+import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+import { LandingPage } from './components/LandingPage';
 import { DashboardView } from './components/DashboardView';
 import { FDRRepositoryView } from './components/FDRRepositoryView';
 import { BankVerificationView } from './components/BankVerificationView';
 import { NoGapRenewalView } from './components/NoGapRenewalView';
 import { LienReleaseDeskView } from './components/LienReleaseDeskView';
 import { AuditTrailView } from './components/AuditTrailView';
+import { MessagesView } from './components/MessagesView';
 import { NewFDRModal } from './components/NewFDRModal';
 import { FDRDetailsModal } from './components/FDRDetailsModal';
 import { BankQRModal } from './components/BankQRModal';
 import { AlertsDrawer } from './components/AlertsDrawer';
-import { FDR, Institution, User, NotificationAlert, DashboardStats } from './types';
+import { FDR, Institution, User, NotificationAlert, DashboardStats, Message } from './types';
 import { api } from './services/api';
 
 export function App() {
-  const [currentUser, setCurrentUser] = useState<User>({
-    id: 'user-maker-01',
-    username: 'maker_aicte',
-    role: 'AICTE_MAKER',
-    full_name: 'Rajesh Sharma',
-    designation: 'Assistant Director (Regulation Bureau)',
-    email: 'rajesh.sharma@aicte-india.org'
-  });
-
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [fdrs, setFdrs] = useState<FDR[]>([]);
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [alerts, setAlerts] = useState<NotificationAlert[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   // Modals & Drawers
@@ -58,6 +53,11 @@ export function App() {
       setStats(statsData);
       setAlerts(alertsData);
       setInstitutions(instsData);
+
+      if (currentUser) {
+        const msgs = await api.getMessages({ role: currentUser.role });
+        setMessages(msgs);
+      }
     } catch (err) {
       console.error('Error loading data:', err);
     }
@@ -65,13 +65,27 @@ export function App() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentUser]);
 
-  const handleSwitchUser = async (username: string) => {
+  const handleLoginSuccess = (user: User) => {
+    setCurrentUser(user);
+    setActiveTab(user.role === 'AICTE_OFFICER' ? 'dashboard' : 'bank-portal');
+    showToast(`Welcome, ${user.full_name} (${user.role === 'AICTE_OFFICER' ? 'AICTE Officer' : 'Bank Officer'})`);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    showToast('Signed out successfully.');
+  };
+
+  const handleSwitchRole = async () => {
+    if (!currentUser) return;
+    const targetUsername = currentUser.role === 'AICTE_OFFICER' ? 'bank_officer' : 'aicte_officer';
     try {
-      const res = await api.login(username, 'password123');
+      const res = await api.login(targetUsername, 'password123');
       setCurrentUser(res.user);
-      showToast(`Switched persona to: ${res.user.full_name} (${res.user.role})`);
+      setActiveTab(res.user.role === 'AICTE_OFFICER' ? 'dashboard' : 'bank-portal');
+      showToast(`Switched persona to: ${res.user.full_name} (${res.user.role === 'AICTE_OFFICER' ? 'AICTE Officer' : 'Bank Officer'})`);
     } catch (err: any) {
       console.error(err);
     }
@@ -113,7 +127,7 @@ export function App() {
     setActiveTab('no-gap-renewal');
   };
 
-  const handleApplyRelease = (fdr: FDR) => {
+  const handleApplyRelease = () => {
     setActiveTab('lien-release');
   };
 
@@ -124,10 +138,16 @@ export function App() {
     }
   };
 
+  // If not logged in, show the Landing Page with Credentials & Login Portal
+  if (!currentUser) {
+    return <LandingPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
   const unreadAlertCount = alerts.filter(a => !a.is_read).length;
+  const unreadMessageCount = messages.filter(m => m.recipient_role === currentUser.role && !m.is_read).length;
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-100 flex flex-row font-sans">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-2 animate-in slide-in-from-bottom duration-200">
@@ -136,88 +156,109 @@ export function App() {
         </div>
       )}
 
-      {/* Main Official Header */}
-      <Header
+      {/* Role-Specific Sidebar */}
+      <Sidebar
         currentUser={currentUser}
-        onSwitchUser={handleSwitchUser}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenAlerts={() => setIsAlertsDrawerOpen(true)}
+        onLogout={handleLogout}
+        unreadMessageCount={unreadMessageCount}
         unreadAlertCount={unreadAlertCount}
-        onRefreshData={loadData}
+        onOpenAlerts={() => setIsAlertsDrawerOpen(true)}
       />
 
-      {/* Main Body Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6">
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            stats={stats}
-            alerts={alerts}
-            currentUser={currentUser}
-            onOpenNewFDR={() => setIsNewFDRModalOpen(true)}
-            onRunScheduler={handleRunScheduler}
-            onNavigateTab={setActiveTab}
-            onSelectFDR={handleSelectFDRById}
-            isSchedulerRunning={isSchedulerRunning}
-          />
-        )}
+      {/* Main Panel */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto max-h-screen">
+        {/* Header */}
+        <Header
+          currentUser={currentUser}
+          onSwitchRole={handleSwitchRole}
+          onLogout={handleLogout}
+          onOpenAlerts={() => setIsAlertsDrawerOpen(true)}
+          unreadAlertCount={unreadAlertCount}
+          unreadMessageCount={unreadMessageCount}
+          onRefreshData={loadData}
+          onNavigateToMessages={() => setActiveTab('messages')}
+        />
 
-        {activeTab === 'repository' && (
-          <FDRRepositoryView
-            fdrs={fdrs}
-            currentUser={currentUser}
-            onSelectFDR={(f) => setSelectedFDR(f)}
-            onOpenBankQR={handleOpenBankQR}
-            onInitiateRenewal={handleInitiateRenewal}
-            onApplyRelease={handleApplyRelease}
-            onScrutinize={(f) => setSelectedFDR(f)}
-          />
-        )}
+        {/* Dynamic Body Content */}
+        <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              stats={stats}
+              alerts={alerts}
+              currentUser={currentUser}
+              onOpenNewFDR={() => setIsNewFDRModalOpen(true)}
+              onRunScheduler={handleRunScheduler}
+              onNavigateTab={setActiveTab}
+              onSelectFDR={handleSelectFDRById}
+              isSchedulerRunning={isSchedulerRunning}
+            />
+          )}
 
-        {activeTab === 'bank-portal' && (
-          <BankVerificationView
-            fdrs={fdrs}
-            currentUser={currentUser}
-            onRefreshData={loadData}
-            selectedToken={selectedBankToken}
-          />
-        )}
+          {activeTab === 'repository' && (
+            <FDRRepositoryView
+              fdrs={fdrs}
+              currentUser={currentUser}
+              onSelectFDR={(f) => setSelectedFDR(f)}
+              onOpenBankQR={handleOpenBankQR}
+              onInitiateRenewal={handleInitiateRenewal}
+              onApplyRelease={handleApplyRelease}
+              onScrutinize={(f) => setSelectedFDR(f)}
+            />
+          )}
 
-        {activeTab === 'no-gap-renewal' && (
-          <NoGapRenewalView
-            fdrs={fdrs}
-            currentUser={currentUser}
-            onRefreshData={loadData}
-            preSelectedFDR={preSelectedRenewalFDR}
-          />
-        )}
+          {activeTab === 'bank-portal' && (
+            <BankVerificationView
+              fdrs={fdrs}
+              currentUser={currentUser}
+              onRefreshData={loadData}
+              selectedToken={selectedBankToken}
+            />
+          )}
 
-        {activeTab === 'lien-release' && (
-          <LienReleaseDeskView
-            currentUser={currentUser}
-            onRefreshData={loadData}
-            fdrs={fdrs}
-          />
-        )}
+          {activeTab === 'no-gap-renewal' && (
+            <NoGapRenewalView
+              fdrs={fdrs}
+              currentUser={currentUser}
+              onRefreshData={loadData}
+              preSelectedFDR={preSelectedRenewalFDR}
+            />
+          )}
 
-        {activeTab === 'audit-trail' && (
-          <AuditTrailView currentUser={currentUser} />
-        )}
-      </main>
+          {activeTab === 'lien-release' && (
+            <LienReleaseDeskView
+              currentUser={currentUser}
+              onRefreshData={loadData}
+              fdrs={fdrs}
+            />
+          )}
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 text-xs py-4 px-6 text-slate-500 flex flex-wrap justify-between items-center gap-2">
-        <div className="flex items-center space-x-2">
-          <span>&copy; 2026 <strong>AICTE Regulation Bureau</strong> &bull; Ministry of Education, Govt. of India</span>
-        </div>
-        <div className="flex items-center space-x-3 text-slate-400 text-[11px]">
-          <span>SIH2026 &bull; Problem Statement SIH26265</span>
-          <span>&bull;</span>
-          <span>Team: <strong>CODECREWW$</strong> (Team ID: 199121)</span>
-          <span>&bull;</span>
-          <span className="text-emerald-600 font-semibold">IT Act 2000 &bull; DPDP Act 2023 Compliant</span>
-        </div>
-      </footer>
+          {activeTab === 'messages' && (
+            <MessagesView
+              currentUser={currentUser}
+              fdrs={fdrs}
+              onRefreshData={loadData}
+            />
+          )}
+
+          {activeTab === 'audit-trail' && (
+            <AuditTrailView currentUser={currentUser} />
+          )}
+        </main>
+
+        {/* Footer */}
+        <footer className="bg-white border-t border-slate-200 text-xs py-3 px-6 text-slate-500 flex flex-wrap justify-between items-center gap-2 mt-auto">
+          <div>
+            &copy; 2026 <strong>AICTE Regulation Bureau</strong> &bull; Ministry of Education, Government of India
+          </div>
+          <div className="flex items-center space-x-3 text-[11px] text-slate-400">
+            <span>DepositGuard Digital Portal</span>
+            <span>&bull;</span>
+            <span className="text-emerald-600 font-semibold">IT Act 2000 &bull; DPDP Act 2023 Compliant</span>
+          </div>
+        </footer>
+      </div>
 
       {/* Modals & Drawers */}
       <NewFDRModal

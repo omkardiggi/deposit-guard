@@ -20,7 +20,8 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         "sub": user.username,
         "role": user.role,
         "name": user.full_name,
-        "institution_id": user.institution_id
+        "bank_name": user.bank_name,
+        "department": user.department
     })
 
     return {
@@ -34,8 +35,8 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
             "designation": user.designation,
             "email": user.email,
             "phone": user.phone,
-            "institution_id": user.institution_id,
-            "bank_name": user.bank_name
+            "bank_name": user.bank_name,
+            "department": user.department
         }
     }
 
@@ -49,13 +50,13 @@ def get_me(current_user: User = Depends(require_auth)):
         "designation": current_user.designation,
         "email": current_user.email,
         "phone": current_user.phone,
-        "institution_id": current_user.institution_id,
-        "bank_name": current_user.bank_name
+        "bank_name": current_user.bank_name,
+        "department": current_user.department
     }
 
 @router.get("/demo-users")
 def list_demo_users(db: Session = Depends(get_db)):
-    """Returns list of pre-seeded accounts for easy 1-click role switching in Hackathon demo!"""
+    """Returns the two authorized portal accounts: AICTE Officer & Bank Officer."""
     users = db.query(User).all()
     return [
         {
@@ -64,8 +65,9 @@ def list_demo_users(db: Session = Depends(get_db)):
             "role": u.role,
             "full_name": u.full_name,
             "designation": u.designation,
-            "institution_id": u.institution_id,
-            "bank_name": u.bank_name
+            "bank_name": u.bank_name,
+            "department": u.department,
+            "email": u.email
         }
         for u in users
     ]

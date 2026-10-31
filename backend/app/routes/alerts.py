@@ -140,3 +140,4 @@ def mark_alert_read(alert_id: str, db: Session = Depends(get_db)):
     alert.is_read = True
     db.commit()
     return {"status": "SUCCESS", "alert_id": alert_id}
+

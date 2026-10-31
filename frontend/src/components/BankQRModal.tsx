@@ -110,3 +110,4 @@ export const BankQRModal: React.FC<BankQRModalProps> = ({
     </div>
   );
 };
+

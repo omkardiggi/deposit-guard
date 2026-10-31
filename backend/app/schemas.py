@@ -10,13 +10,13 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: str
     username: str
-    role: str
+    role: str  # AICTE_OFFICER or BANK_OFFICER
     full_name: str
     designation: Optional[str] = None
     email: str
     phone: Optional[str] = None
-    institution_id: Optional[str] = None
     bank_name: Optional[str] = None
+    department: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -229,6 +229,33 @@ class NotificationResponse(BaseModel):
     severity: str
     is_read: bool
     channel: str
+    created_at: Any
+
+# Messages between AICTE Officer & Bank Officer
+class MessageCreate(BaseModel):
+    recipient_role: str  # AICTE_OFFICER or BANK_OFFICER
+    recipient_name: Optional[str] = None
+    fdr_id: Optional[str] = None
+    fdr_number: Optional[str] = None
+    subject: str
+    content: str
+    message_type: str = "OFFICIAL_NOTICE"
+    attachment_data: Optional[str] = None
+
+class MessageResponse(BaseModel):
+    id: str
+    sender_id: str
+    sender_role: str
+    sender_name: str
+    recipient_role: str
+    recipient_name: str
+    fdr_id: Optional[str] = None
+    fdr_number: Optional[str] = None
+    subject: str
+    content: str
+    message_type: str
+    attachment_data: Optional[str] = None
+    is_read: bool
     created_at: Any
 
 # Dashboard statistics

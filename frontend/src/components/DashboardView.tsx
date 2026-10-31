@@ -184,7 +184,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            DepositGuard Trust Pillars (SIH26265)
+            DepositGuard Regulatory Trust Pillars
           </h3>
           <div className="space-y-2.5 text-xs">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
@@ -276,3 +276,4 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     </div>
   );
 };
+

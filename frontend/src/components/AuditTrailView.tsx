@@ -167,15 +167,15 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ currentUser }) =
         </div>
       )}
 
-      {/* SIH Hackathon Live Demonstration Cockpit */}
+      {/* Interactive Tamper-Evidence Testing Cockpit */}
       <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs flex flex-wrap justify-between items-center gap-4">
         <div>
           <span className="font-bold text-slate-900 flex items-center gap-1.5">
             <Wrench className="w-4 h-4 text-amber-600" />
-            SIH 2026 Evaluator Interactive Tamper Simulation:
+            Official Cryptographic Tamper-Evidence Testing:
           </span>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            Simulate a malicious database intrusion altering deposit amounts directly in SQL to test DepositGuard's tamper-evidence.
+            Simulate a database intrusion altering deposit records directly in SQL to verify DepositGuard's tamper-detection engine.
           </p>
         </div>
 
@@ -276,3 +276,4 @@ export const AuditTrailView: React.FC<AuditTrailViewProps> = ({ currentUser }) =
     </div>
   );
 };
+

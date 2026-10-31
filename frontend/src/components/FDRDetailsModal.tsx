@@ -161,8 +161,8 @@ export const FDRDetailsModal: React.FC<FDRDetailsModalProps> = ({
           </div>
         )}
 
-        {/* Officer Scrutiny Action Desk (If Maker/Checker role) */}
-        {(currentUser.role === 'AICTE_MAKER' || currentUser.role === 'AICTE_CHECKER') && (
+        {/* Officer Scrutiny Action Desk (If AICTE Officer) */}
+        {currentUser.role === 'AICTE_OFFICER' && (
           <div className="p-4 bg-purple-50/50 border border-purple-200 rounded-xl text-xs space-y-3">
             <h4 className="font-bold text-purple-900 flex items-center gap-1.5">
               <UserCheck className="w-4 h-4 text-purple-700" />
@@ -208,3 +208,4 @@ export const FDRDetailsModal: React.FC<FDRDetailsModalProps> = ({
     </div>
   );
 };
+

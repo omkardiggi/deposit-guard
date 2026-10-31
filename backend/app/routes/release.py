@@ -1,6 +1,3 @@
-import io
-import json
-import base64
 from datetime import datetime, timezone
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -64,7 +61,6 @@ def apply_lien_release(
     if not fdr:
         raise HTTPException(status_code=404, detail="FDR record not found")
 
-    # Check that FDR is not already in release workflow
     existing = db.query(LienRelease).filter(
         LienRelease.fdr_id == fdr.id,
         LienRelease.status.in_(["PENDING_MAKER", "MAKER_RECOMMENDED", "CHECKER_APPROVED"])
@@ -83,12 +79,11 @@ def apply_lien_release(
     db.add(release)
 
     fdr.status = "RELEASE_REQUESTED"
-    fdr.status_remarks = "Institution applied for Lien Release & Refund. Pending AICTE Maker scrutiny."
+    fdr.status_remarks = "Institution applied for Lien Release & Refund. Pending AICTE Officer scrutiny."
 
     actor_name = current_user.full_name if current_user else inst.name
     actor_role = current_user.role if current_user else "INSTITUTION"
 
-    # Cryptographic Audit Block
     add_audit_block(
         db=db,
         action="LIEN_RELEASE_APPLICATION_FILED",
@@ -108,7 +103,7 @@ def apply_lien_release(
         fdr_id=fdr.id,
         institution_id=inst.id,
         alert_type="RELEASE_APPLICATION_SUBMITTED",
-        recipient="AICTE_REGULATION_BUREAU",
+        recipient="AICTE_OFFICER",
         title=f"Lien Release Request: {inst.name}",
         message=f"Application received for release of FDR #{fdr.fdr_number} (₹{fdr.declared_amount:,.2f}). Reason: {payload.reason}",
         severity="INFO"
@@ -128,9 +123,9 @@ def apply_lien_release(
 def maker_recommend_release(
     payload: MakerReleaseDecision,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["AICTE_MAKER", "AICTE_CHECKER"]))
+    current_user: User = Depends(require_roles(["AICTE_OFFICER"]))
 ):
-    """Stage 1 of Maker-Checker Workflow: Scrutiny Officer verifies compliance conditions."""
+    """Stage 1 of AICTE Regulation Bureau Scrutiny: Verifies compliance conditions."""
     release = db.query(LienRelease).filter(LienRelease.id == payload.release_id).first()
     if not release:
         raise HTTPException(status_code=404, detail="Release record not found")
@@ -146,18 +141,18 @@ def maker_recommend_release(
     if payload.decision == "RECOMMEND":
         release.status = "MAKER_RECOMMENDED"
         fdr.status = "RELEASE_MAKER_RECOMMENDED"
-        fdr.status_remarks = f"Maker Officer ({current_user.full_name}) recommended release: {payload.remarks}"
-        next_step = "Forwarded to Competent Authority (Member Secretary / Checker) for final authorization."
+        fdr.status_remarks = f"AICTE Officer ({current_user.full_name}) recommended release: {payload.remarks}"
+        next_step = "Scrutiny completed. Ready for Final Competent Authority Sanction."
     else:
         release.status = "REJECTED"
         fdr.status = "ACTIVE"
-        fdr.status_remarks = f"Release application rejected by Maker Officer: {payload.remarks}"
+        fdr.status_remarks = f"Release application rejected: {payload.remarks}"
         next_step = "Application rejected. FDR remains in active pledged status."
 
     add_audit_block(
         db=db,
         action=f"LIEN_RELEASE_MAKER_{payload.decision}",
-        actor_role="AICTE_MAKER",
+        actor_role="AICTE_OFFICER",
         actor_name=f"{current_user.full_name} ({current_user.designation})",
         entity_type="LIEN_RELEASE",
         entity_id=release.id,
@@ -180,22 +175,15 @@ def maker_recommend_release(
 def checker_approve_release(
     payload: CheckerReleaseDecision,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["AICTE_CHECKER"]))
+    current_user: User = Depends(require_roles(["AICTE_OFFICER"]))
 ):
     """
-    Stage 2 of Maker-Checker Workflow:
-    Competent Authority (Director / Member Secretary) executes final sanction order.
-    Issues digitally signed AICTE Lien Discharge Order.
+    Stage 2 of AICTE Sanction:
+    Competent Authority authorizes release and issues official digitally signed Lien Discharge Order.
     """
     release = db.query(LienRelease).filter(LienRelease.id == payload.release_id).first()
     if not release:
         raise HTTPException(status_code=404, detail="Release record not found")
-
-    if release.status != "MAKER_RECOMMENDED":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot execute Checker decision. Current status is '{release.status}', requires 'MAKER_RECOMMENDED'."
-        )
 
     now = datetime.now(timezone.utc)
     release.checker_id = current_user.id
@@ -212,12 +200,12 @@ def checker_approve_release(
         release.discharge_order_ref = order_ref
         
         fdr.status = "RELEASE_CHECKER_APPROVED"
-        fdr.status_remarks = f"Final release approved by Competent Authority ({current_user.full_name}). Official Discharge Order #{order_ref} issued to {fdr.issuing_bank}."
+        fdr.status_remarks = f"Final release approved by AICTE Authority ({current_user.full_name}). Official Discharge Order #{order_ref} issued to {fdr.issuing_bank}."
 
         add_audit_block(
             db=db,
             action="LIEN_DISCHARGE_ORDER_ISSUED",
-            actor_role="AICTE_CHECKER",
+            actor_role="AICTE_OFFICER",
             actor_name=f"{current_user.full_name} ({current_user.designation})",
             entity_type="LIEN_RELEASE",
             entity_id=release.id,
@@ -231,14 +219,14 @@ def checker_approve_release(
             }
         )
 
-        # Notify Institution & Issuing Bank
+        # Notify Bank Officer that official release order is issued!
         alert = NotificationAlert(
             fdr_id=fdr.id,
             institution_id=inst.id,
             alert_type="LIEN_RELEASE_APPROVED",
-            recipient=inst.name,
+            recipient="BANK_OFFICER",
             title=f"Lien Discharge Order Issued: {order_ref}",
-            message=f"Competent Authority approved release of FDR #{fdr.fdr_number}. AICTE Lien Discharge Letter generated for submission to {fdr.issuing_bank}.",
+            message=f"AICTE Authority approved release of FDR #{fdr.fdr_number} ({fdr.issuing_bank}). Bank Nodal Officer may execute CBS lien clearance.",
             severity="SUCCESS"
         )
         db.add(alert)
@@ -246,12 +234,12 @@ def checker_approve_release(
     else:
         release.status = "REJECTED"
         fdr.status = "ACTIVE"
-        fdr.status_remarks = f"Release application rejected by Competent Authority: {payload.remarks}"
+        fdr.status_remarks = f"Release application rejected: {payload.remarks}"
         
         add_audit_block(
             db=db,
-            action="LIEN_RELEASE_CHECKER_REJECTED",
-            actor_role="AICTE_CHECKER",
+            action="LIEN_RELEASE_REJECTED",
+            actor_role="AICTE_OFFICER",
             actor_name=f"{current_user.full_name} ({current_user.designation})",
             entity_type="LIEN_RELEASE",
             entity_id=release.id,
@@ -260,7 +248,7 @@ def checker_approve_release(
                 "remarks": payload.remarks
             }
         )
-        msg = "Release application rejected by Competent Authority."
+        msg = "Release application rejected."
 
     db.commit()
 
@@ -276,7 +264,7 @@ def execute_bank_lien_discharge(
     release_id: str,
     db: Session = Depends(get_db)
 ):
-    """Bank executes lien discharge in its Core Banking Solution (CBS). Deposit is returned to college."""
+    """Bank Nodal Officer executes lien discharge in Core Banking Solution (CBS). Deposit is returned to college."""
     release = db.query(LienRelease).filter(LienRelease.id == release_id).first()
     if not release:
         raise HTTPException(status_code=404, detail="Release record not found")
@@ -292,7 +280,6 @@ def execute_bank_lien_discharge(
     fdr.status = "RELEASED"
     fdr.status_remarks = f"Lien officially cleared by {fdr.issuing_bank} on {now.strftime('%d-%b-%Y')}. Security deposit successfully refunded/discharged."
 
-    # Update field provenances
     for p in fdr.provenances:
         if p.field_key == "lien_status":
             p.bank_val = "Lien Discharged / Cleared"
@@ -301,8 +288,8 @@ def execute_bank_lien_discharge(
     add_audit_block(
         db=db,
         action="BANK_LIEN_DISCHARGE_EXECUTED",
-        actor_role="BANK_NODAL_OFFICER",
-        actor_name=f"{fdr.issuing_bank} Operations",
+        actor_role="BANK_OFFICER",
+        actor_name=f"{fdr.issuing_bank} Nodal Cell",
         entity_type="FDR",
         entity_id=fdr.id,
         details={
@@ -311,6 +298,18 @@ def execute_bank_lien_discharge(
             "discharged_at": now.isoformat()
         }
     )
+
+    # Notify AICTE Officer that bank has executed lien clearance
+    alert = NotificationAlert(
+        fdr_id=fdr.id,
+        institution_id=fdr.institution_id,
+        alert_type="BANK_DISCHARGE_EXECUTED",
+        recipient="AICTE_OFFICER",
+        title=f"Bank Lien Cleared: FDR #{fdr.fdr_number}",
+        message=f"{fdr.issuing_bank} executed CBS lien discharge under Order #{release.discharge_order_ref}. Process complete.",
+        severity="SUCCESS"
+    )
+    db.add(alert)
 
     db.commit()
 
@@ -409,7 +408,7 @@ def get_discharge_letter_html(release_id: str, db: Session = Depends(get_db)):
                 <div class="dsc-badge">
                     <strong>CRYPTOGRAPHIC VERIFICATION SEAL</strong><br>
                     Hash: SHA-256 Validated<br>
-                    Signer: Member Secretary / Director (AICTE)<br>
+                    Signer: Member Secretary / Director (AICTE Regulation Bureau)<br>
                     Timestamp: {date_str} (IST)<br>
                     Portal: depositguard.aicte.gov.in
                 </div>

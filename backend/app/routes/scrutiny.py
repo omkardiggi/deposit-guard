@@ -12,11 +12,11 @@ router = APIRouter(prefix="/api/scrutiny", tags=["AICTE Scrutiny Workflow"])
 def submit_scrutiny_decision(
     payload: MakerScrutinySubmit,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(["AICTE_MAKER", "AICTE_CHECKER"]))
+    current_user: User = Depends(require_roles(["AICTE_OFFICER"]))
 ):
     """
     AICTE Regulation Bureau Officer Scrutiny:
-    Approves bank-confirmed FDR into active status or flags deficiencies to institution.
+    Approves bank-confirmed FDR into active status or flags deficiencies.
     """
     fdr = db.query(FDR).filter(FDR.id == payload.fdr_id).first()
     if not fdr:
@@ -40,7 +40,7 @@ def submit_scrutiny_decision(
     # Add Immutable Audit Block
     add_audit_block(
         db=db,
-        action=f"OFFICER_SCRUTINY_{new_status}",
+        action=f"AICTE_OFFICER_SCRUTINY_{new_status}",
         actor_role=current_user.role,
         actor_name=f"{current_user.full_name} ({current_user.designation})",
         entity_type="FDR",
@@ -54,18 +54,16 @@ def submit_scrutiny_decision(
         }
     )
 
-    # Notify College
-    inst = fdr.institution
-    alert_type = "SCRUTINY_APPROVED" if new_status == "ACTIVE" else "SCRUTINY_DEFICIENCY"
-    severity = "SUCCESS" if new_status == "ACTIVE" else "WARNING"
+    # Notify Bank Officer and Institution
+    alert_severity = "SUCCESS" if new_status == "ACTIVE" else "WARNING"
     alert = NotificationAlert(
         fdr_id=fdr.id,
         institution_id=fdr.institution_id,
-        alert_type=alert_type,
-        recipient=inst.name,
-        title=f"AICTE Scrutiny Decision: {new_status} (FDR #{fdr.fdr_number})",
-        message=f"AICTE Regulation Bureau scrutinized your FDR: {payload.remarks}",
-        severity=severity
+        alert_type="SCRUTINY_DECISION",
+        recipient="BANK_OFFICER",
+        title=f"AICTE Scrutiny Order: {new_status} (FDR #{fdr.fdr_number})",
+        message=f"AICTE Officer scrutinized FDR #{fdr.fdr_number}: {payload.remarks}",
+        severity=alert_severity
     )
     db.add(alert)
 

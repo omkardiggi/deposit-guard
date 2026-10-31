@@ -141,3 +141,4 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
     </div>
   );
 };
+

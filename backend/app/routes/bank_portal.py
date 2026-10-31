@@ -253,3 +253,4 @@ def generate_token_qr(token: str):
         "qr_image_data_uri": f"data:image/png;base64,{png_base64}",
         "verification_url": f"http://localhost:5173/bank-verify?token={token}"
     }
+

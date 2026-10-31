@@ -263,8 +263,8 @@ export const FDRRepositoryView: React.FC<FDRRepositoryViewProps> = ({
                           <QrCode className="w-4 h-4" />
                         </button>
 
-                        {/* Officer Scrutiny (if Maker/Checker) */}
-                        {(currentUser.role === 'AICTE_MAKER' || currentUser.role === 'AICTE_CHECKER') && (
+                        {/* Officer Scrutiny (if AICTE Officer) */}
+                        {currentUser.role === 'AICTE_OFFICER' && (
                           <button
                             onClick={() => onScrutinize(f)}
                             title="Scrutiny Decision"
@@ -296,3 +296,4 @@ export const FDRRepositoryView: React.FC<FDRRepositoryViewProps> = ({
     </div>
   );
 };
+

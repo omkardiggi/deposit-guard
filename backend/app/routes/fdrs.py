@@ -426,3 +426,4 @@ def simulate_ocr_extraction(filename: Optional[str] = "fdr_scan.pdf"):
         "ocr_engine": "AICTE-DepositGuard OCR v2.4 (RapidOCR / Leptonica Engine)",
         "message": "FDR details extracted with 98.2% composite confidence score."
     }
+

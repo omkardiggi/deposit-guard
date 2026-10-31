@@ -1,4 +1,4 @@
-export type UserRole = 'INSTITUTION' | 'AICTE_MAKER' | 'AICTE_CHECKER' | 'BANK_OFFICER' | 'AUDITOR';
+export type UserRole = 'AICTE_OFFICER' | 'BANK_OFFICER';
 
 export interface User {
   id: string;
@@ -8,8 +8,8 @@ export interface User {
   designation?: string;
   email: string;
   phone?: string;
-  institution_id?: string;
   bank_name?: string;
+  department?: string;
 }
 
 export interface Institution {
@@ -154,6 +154,23 @@ export interface NotificationAlert {
   severity: 'INFO' | 'WARNING' | 'CRITICAL' | 'SUCCESS';
   is_read: boolean;
   channel: string;
+  created_at: string;
+}
+
+export interface Message {
+  id: string;
+  sender_id: string;
+  sender_role: UserRole;
+  sender_name: string;
+  recipient_role: UserRole;
+  recipient_name: string;
+  fdr_id?: string;
+  fdr_number?: string;
+  subject: string;
+  content: string;
+  message_type: 'OFFICIAL_NOTICE' | 'DISCREPANCY_FLAG' | 'VERIFICATION_REQUEST' | 'LIEN_DISCHARGE_ORDER' | 'GENERAL_INQUIRY' | 'BANK_CONFIRMATION';
+  attachment_data?: string;
+  is_read: boolean;
   created_at: string;
 }
 

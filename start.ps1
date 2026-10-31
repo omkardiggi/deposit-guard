@@ -2,7 +2,7 @@
 Write-Host "=========================================================================" -ForegroundColor Cyan
 Write-Host "  DepositGuard: Centralized Security Deposit & FDR Management Portal" -ForegroundColor Green
 Write-Host "  AICTE Regulation Bureau - Ministry of Education, Government of India" -ForegroundColor White
-Write-Host "  Smart India Hackathon 2026 (SIH26265) | Team: CODECREWW$ (ID: 199121)" -ForegroundColor Yellow
+Write-Host "  Official Portal for AICTE Officers & Issuing Bank Nodal Officers" -ForegroundColor Yellow
 Write-Host "=========================================================================" -ForegroundColor Cyan
 
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd backend; python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000"

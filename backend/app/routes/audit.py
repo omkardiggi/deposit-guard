@@ -9,7 +9,7 @@ from ..audit_chain import verify_audit_chain, compute_sha256
 
 router = APIRouter(prefix="/api/audit", tags=["Tamper-Proof Audit Trail"])
 
-# In-memory store for restoring tampered blocks during SIH live demonstration
+# In-memory store for restoring tampered blocks during live demonstration
 ORIGINAL_BLOCK_CACHE = {}
 
 @router.get("/chain", response_model=List[AuditBlockResponse])
@@ -29,10 +29,8 @@ def verify_chain_integrity(db: Session = Depends(get_db)):
 @router.post("/tamper-demo/{block_index}")
 def simulate_tamper_demo(block_index: int, db: Session = Depends(get_db)):
     """
-    FOR EVALUATION / DEMO PURPOSE:
-    Simulates a rogue database attacker altering an audit record directly in SQL.
-    Shows the SIH judges how DepositGuard's cryptographic hash chain instantly detects
-    the exact block index and payload violation!
+    Demonstrates how DepositGuard's cryptographic hash chain instantly detects
+    direct unauthorized database alterations.
     """
     block = db.query(AuditBlock).filter(AuditBlock.block_index == block_index).first()
     if not block:
@@ -82,3 +80,4 @@ def restore_tamper_demo(block_index: int, db: Session = Depends(get_db)):
         "block_index": block_index,
         "message": f"Block #{block_index} successfully restored to genuine signed state. Hash chain restored."
     }
+

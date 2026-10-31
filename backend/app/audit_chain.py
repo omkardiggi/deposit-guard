@@ -125,3 +125,4 @@ def verify_audit_chain(db: Session) -> dict:
         "latest_block_hash": blocks[-1].block_hash if blocks else None,
         "message": f"All {len(blocks)} blocks verified successfully. Cryptographic chain is 100% intact and untampered."
     }
+

@@ -42,3 +42,4 @@ def create_institution(payload: InstitutionCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(inst)
     return inst
+

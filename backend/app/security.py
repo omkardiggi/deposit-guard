@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import User
 
-SECRET_KEY = os.getenv("DEPOSITGUARD_SECRET_KEY", "aicte_depositguard_super_secret_key_sih2026_production")
+SECRET_KEY = os.getenv("DEPOSITGUARD_SECRET_KEY", "aicte_depositguard_super_secret_key_production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
@@ -101,3 +101,4 @@ def generate_dsc_attestation(bank_name: str, officer_name: str, officer_empid: s
         "ocsp_status": "GOOD (RFC 6960 Validated)",
         "legal_validity": "Valid under Section 4 & Section 5 of Information Technology Act 2000 (India)"
     }
+

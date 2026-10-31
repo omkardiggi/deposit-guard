@@ -2,7 +2,7 @@
 echo =========================================================================
 echo   DepositGuard: Centralized Security Deposit & FDR Management Portal
 echo   AICTE Regulation Bureau - Ministry of Education, Government of India
-echo   Smart India Hackathon 2026 (SIH26265) | Team: CODECREWW$ (ID: 199121)
+echo   Official Portal for AICTE Officers & Issuing Bank Nodal Officers
 echo =========================================================================
 echo.
 

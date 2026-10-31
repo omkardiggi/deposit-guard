@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timedelta, timezone, date
 from .database import SessionLocal, engine, Base
-from .models import User, Institution, FDR, BankVerification, FieldProvenance, LienRelease, NotificationAlert, AuditBlock
+from .models import User, Institution, FDR, BankVerification, FieldProvenance, LienRelease, NotificationAlert, AuditBlock, Message
 from .security import hash_password, generate_dsc_attestation
 from .audit_chain import add_audit_block
 
@@ -14,57 +14,39 @@ def seed_database():
         db.close()
         return
 
-    print("Seeding DepositGuard database with realistic AICTE data...")
+    print("Seeding DepositGuard database with AICTE Officer and Bank Officer data...")
 
-    # 1. Create Demo Users (Password for all: 'password123')
     pwd = hash_password("password123")
     
-    # AICTE Maker
-    user_maker = User(
-        username="maker_aicte",
+    # Exactly two core user personas:
+    # 1. AICTE Officer
+    user_aicte = User(
+        username="aicte_officer",
         password_hash=pwd,
-        role="AICTE_MAKER",
-        full_name="Rajesh Sharma",
-        designation="Assistant Director (Regulation Bureau)",
-        email="rajesh.sharma@aicte-india.org",
-        phone="+91 98112 34567"
+        role="AICTE_OFFICER",
+        full_name="Dr. Rajesh Sharma",
+        designation="Director & Nodal Authority",
+        department="Regulation Bureau, AICTE New Delhi",
+        email="rajesh.sharma@aicte.gov.in",
+        phone="+91 11 2958 1000"
     )
-    # AICTE Checker (Competent Authority)
-    user_checker = User(
-        username="checker_aicte",
-        password_hash=pwd,
-        role="AICTE_CHECKER",
-        full_name="Dr. Mamta R. Agarwal",
-        designation="Adviser-I / Member Secretary (Regulation)",
-        email="mamta.agarwal@aicte-india.org",
-        phone="+91 98223 45678"
-    )
-    # Bank Nodal Officer
+    # 2. Bank Officer
     user_bank = User(
-        username="bank_nodal_sbi",
+        username="bank_officer",
         password_hash=pwd,
         role="BANK_OFFICER",
         full_name="S. Ramesh",
         designation="Chief Manager & Nodal Officer (Govt Accounts)",
         bank_name="State Bank of India",
+        department="Institutional Accounts & CBS Lien Cell",
         email="s.ramesh@sbi.co.in",
-        phone="+91 98334 56789"
-    )
-    # CAG / Internal Auditor
-    user_auditor = User(
-        username="cag_auditor",
-        password_hash=pwd,
-        role="AUDITOR",
-        full_name="Vikramaditya Sen",
-        designation="Senior Audit Officer (Comptroller & Auditor General of India)",
-        email="v.sen@cag.gov.in",
-        phone="+91 98445 67890"
+        phone="+91 22 2274 0000"
     )
     
-    db.add_all([user_maker, user_checker, user_bank, user_auditor])
+    db.add_all([user_aicte, user_bank])
     db.flush()
 
-    # 2. Create Institutions
+    # Create Institutions
     inst1 = Institution(
         aicte_id="1-102938471",
         name="Veermata Jijabai Technological Institute (VJTI)",
@@ -123,33 +105,15 @@ def seed_database():
     db.add_all([inst1, inst2, inst3, inst4, inst5])
     db.flush()
 
-    # Create College User linked to inst1
-    user_college = User(
-        username="college_vjti",
-        password_hash=pwd,
-        role="INSTITUTION",
-        full_name="Dr. Sachin Deshmukh",
-        designation="Registrar, VJTI Mumbai",
-        institution_id=inst1.id,
-        email="registrar@vjti.ac.in",
-        phone="+91 22 24198101"
-    )
-    db.add(user_college)
-    db.flush()
-
     # Helper dates
     today = date.today()
     in_12_days = (today + timedelta(days=12)).isoformat()
-    in_26_days = (today + timedelta(days=26)).isoformat()
-    in_50_days = (today + timedelta(days=50)).isoformat()
     past_10_days = (today - timedelta(days=10)).isoformat()
     future_3_years = (today + timedelta(days=365 * 3)).isoformat()
     future_5_years = (today + timedelta(days=365 * 5)).isoformat()
     future_8_years = (today + timedelta(days=365 * 8)).isoformat()
 
-    # 3. Create Sample FDRs
-
-    # FDR 1: ACTIVE (Fully verified & compliant)
+    # Create Sample FDRs
     fdr1 = FDR(
         fdr_number="SBI-DEL-2023-049281",
         institution_id=inst1.id,
@@ -177,7 +141,6 @@ def seed_database():
         verification_expires_at=datetime.now(timezone.utc) + timedelta(days=15)
     )
 
-    # FDR 2: EXPIRING_SOON (Matures in 12 days! Triggers Urgent Alert for No-Gap Renewal)
     fdr2 = FDR(
         fdr_number="PNB-ND-2021-984120",
         institution_id=inst2.id,
@@ -205,7 +168,6 @@ def seed_database():
         verification_expires_at=datetime.now(timezone.utc) + timedelta(days=15)
     )
 
-    # FDR 3: PENDING_VERIFICATION (Newly submitted, token waiting for bank officer review)
     fdr3 = FDR(
         fdr_number="CAN-BLR-2026-391084",
         institution_id=inst3.id,
@@ -231,7 +193,6 @@ def seed_database():
         verification_expires_at=datetime.now(timezone.utc) + timedelta(days=14)
     )
 
-    # FDR 4: FLAGGED_MISMATCH (Amount mismatch + Lien NOT marked in bank CBS!)
     fdr4 = FDR(
         fdr_number="BOB-CBE-2025-772910",
         institution_id=inst4.id,
@@ -240,7 +201,7 @@ def seed_database():
         branch_name="Peelamedu Branch, Coimbatore",
         ifsc_code="BARB0PEELAM",
         declared_amount=2500000.0,
-        bank_confirmed_amount=2000000.0,  # ₹5,00,000 deficit!
+        bank_confirmed_amount=2000000.0,
         currency="INR",
         issue_date="2025-06-01",
         declared_maturity_date=future_3_years,
@@ -250,7 +211,7 @@ def seed_database():
         declared_joint_holder="Jointly with Member Secretary, AICTE, New Delhi",
         bank_confirmed_joint_holder="PSG Tech General Trust Only (Missing AICTE)",
         declared_lien=True,
-        bank_confirmed_lien=False,  # Lien not recorded!
+        bank_confirmed_lien=False,
         auto_renewal_clause=False,
         status="FLAGGED_MISMATCH",
         status_remarks="Discrepancies flagged: Declared ₹25,00,000 vs Confirmed ₹20,00,000; Bank ledger confirms NO lien marked to AICTE.",
@@ -259,7 +220,6 @@ def seed_database():
         verification_expires_at=datetime.now(timezone.utc) + timedelta(days=5)
     )
 
-    # FDR 5: RELEASE_REQUESTED (Tenure completed 10 years; college applied for lien release)
     fdr5 = FDR(
         fdr_number="HDFC-NOI-2016-118942",
         institution_id=inst5.id,
@@ -281,13 +241,12 @@ def seed_database():
         bank_confirmed_lien=True,
         auto_renewal_clause=False,
         status="RELEASE_REQUESTED",
-        status_remarks="Institution submitted Lien Release application following completion of 10-year term. Under Maker scrutiny.",
+        status_remarks="Institution submitted Lien Release application following completion of 10-year term. Under AICTE Officer scrutiny.",
         document_filename="fdr_receipt_ims_hdfc.pdf",
         verification_token="tok_hdfc_ims_release_8829",
         verification_expires_at=datetime.now(timezone.utc) + timedelta(days=15)
     )
 
-    # FDR 6: MATURED (Lapsed without renewal)
     fdr6 = FDR(
         fdr_number="SBI-MUM-2019-551029",
         institution_id=inst1.id,
@@ -309,7 +268,7 @@ def seed_database():
         bank_confirmed_lien=True,
         auto_renewal_clause=False,
         status="MATURED",
-        status_remarks="Matured 10 days ago without renewal. Regulatory show-cause trigger generated.",
+        status_remarks="Matured 10 days ago without renewal. Regulatory notice dispatched.",
         document_filename="fdr_matured_scan.pdf",
         verification_token="tok_sbi_vjti_matured_0019",
         verification_expires_at=datetime.now(timezone.utc) - timedelta(days=5)
@@ -318,7 +277,7 @@ def seed_database():
     db.add_all([fdr1, fdr2, fdr3, fdr4, fdr5, fdr6])
     db.flush()
 
-    # 4. Bank DSC Verification Records for Verified FDRs
+    # Bank DSC Verification Records
     dsc1 = generate_dsc_attestation(
         bank_name="State Bank of India",
         officer_name="S. Ramesh",
@@ -378,22 +337,19 @@ def seed_database():
     db.add_all([bv1, bv4])
     db.flush()
 
-    # 5. Field Provenances (Trust Tags)
-    # For FDR 1 (All Bank-Confirmed & Officer-Verified)
+    # Field Provenance Records
     provs1 = [
         FieldProvenance(fdr_id=fdr1.id, field_key="amount", declared_val="₹ 35,00,000.00", bank_val="₹ 35,00,000.00", officer_val="₹ 35,00,000.00", trust_tag="OFFICER_VERIFIED", is_match=True),
         FieldProvenance(fdr_id=fdr1.id, field_key="maturity_date", declared_val=future_5_years, bank_val=future_5_years, officer_val=future_5_years, trust_tag="OFFICER_VERIFIED", is_match=True),
         FieldProvenance(fdr_id=fdr1.id, field_key="joint_holder", declared_val="Jointly with Member Secretary, AICTE", bank_val="Jointly with Member Secretary, AICTE", officer_val="Jointly with Member Secretary, AICTE", trust_tag="OFFICER_VERIFIED", is_match=True),
         FieldProvenance(fdr_id=fdr1.id, field_key="lien_status", declared_val="Lien Marked to AICTE", bank_val="Lien Marked to AICTE", officer_val="Lien Marked to AICTE", trust_tag="OFFICER_VERIFIED", is_match=True)
     ]
-    # For FDR 4 (Flagged Mismatches)
     provs4 = [
         FieldProvenance(fdr_id=fdr4.id, field_key="amount", declared_val="₹ 25,00,000.00", bank_val="₹ 20,00,000.00", trust_tag="MISMATCH", is_match=False, notes="Bank confirms ₹5,00,000 shortfall"),
         FieldProvenance(fdr_id=fdr4.id, field_key="maturity_date", declared_val=future_3_years, bank_val=future_3_years, trust_tag="BANK_CONFIRMED", is_match=True),
         FieldProvenance(fdr_id=fdr4.id, field_key="joint_holder", declared_val="Jointly with Member Secretary, AICTE", bank_val="PSG Tech General Trust Only", trust_tag="MISMATCH", is_match=False, notes="AICTE name omitted in bank CBS"),
         FieldProvenance(fdr_id=fdr4.id, field_key="lien_status", declared_val="Lien Marked to AICTE", bank_val="No Lien Marked", trust_tag="MISMATCH", is_match=False, notes="CBS records show unencumbered deposit")
     ]
-    # For FDR 3 (Declared only)
     provs3 = [
         FieldProvenance(fdr_id=fdr3.id, field_key="amount", declared_val="₹ 25,00,000.00", trust_tag="DECLARED", is_match=True),
         FieldProvenance(fdr_id=fdr3.id, field_key="maturity_date", declared_val=future_8_years, trust_tag="DECLARED", is_match=True),
@@ -403,7 +359,7 @@ def seed_database():
     db.add_all(provs1 + provs4 + provs3)
     db.flush()
 
-    # 6. Lien Release Application for FDR 5
+    # Lien Release Application for FDR 5
     rel5 = LienRelease(
         fdr_id=fdr5.id,
         institution_id=inst5.id,
@@ -414,8 +370,7 @@ def seed_database():
     db.add(rel5)
     db.flush()
 
-    # 7. Seed Initial Cryptographic Hash Chain Audit Blocks
-    print("Generating Genesis and initial hash-chained audit blocks...")
+    # Seed Initial Cryptographic Hash Chain Audit Blocks
     add_audit_block(
         db=db,
         action="GENESIS_SYSTEM_INITIALIZED",
@@ -423,13 +378,13 @@ def seed_database():
         actor_name="AICTE Root Authority",
         entity_type="SYSTEM",
         entity_id="ROOT-AICTE-001",
-        details={"version": "DepositGuard v2.4", "standard": "SIH2026-SIH26265", "cryptography": "SHA256-PKCS7-CCA"}
+        details={"version": "DepositGuard v2.4", "cryptography": "SHA256-PKCS7-CCA"}
     )
     add_audit_block(
         db=db,
         action="INSTITUTION_REGISTERED",
-        actor_role="AICTE_REGULATION_BUREAU",
-        actor_name="System Administrator",
+        actor_role="AICTE_OFFICER",
+        actor_name="Dr. Rajesh Sharma",
         entity_type="INSTITUTION",
         entity_id=inst1.id,
         details={"aicte_id": inst1.aicte_id, "name": inst1.name, "state": inst1.state}
@@ -446,7 +401,7 @@ def seed_database():
     add_audit_block(
         db=db,
         action="BANK_DSC_CONFIRMATION_SIGNED",
-        actor_role="BANK_NODAL_OFFICER",
+        actor_role="BANK_OFFICER",
         actor_name="S. Ramesh (State Bank of India)",
         entity_type="FDR",
         entity_id=fdr1.id,
@@ -455,64 +410,67 @@ def seed_database():
     add_audit_block(
         db=db,
         action="OFFICER_SCRUTINY_ACTIVE",
-        actor_role="AICTE_MAKER",
-        actor_name="Rajesh Sharma (Assistant Director)",
+        actor_role="AICTE_OFFICER",
+        actor_name="Dr. Rajesh Sharma (Director)",
         entity_type="FDR",
         entity_id=fdr1.id,
         details={"fdr_number": fdr1.fdr_number, "status": "ACTIVE", "remarks": "Compliant with Approval Process Handbook"}
     )
-    add_audit_block(
-        db=db,
-        action="BANK_DSC_DISCREPANCY_FLAGGED",
-        actor_role="BANK_NODAL_OFFICER",
-        actor_name="K. V. Ramanathan (Bank of Baroda)",
-        entity_type="FDR",
-        entity_id=fdr4.id,
-        details={"fdr_number": fdr4.fdr_number, "declared_amount": 2500000.0, "bank_amount": 2000000.0, "lien": "NOT_MARKED"}
-    )
-    add_audit_block(
-        db=db,
-        action="LIEN_RELEASE_APPLICATION_FILED",
-        actor_role="INSTITUTION",
-        actor_name=inst5.name,
-        entity_type="LIEN_RELEASE",
-        entity_id=rel5.id,
-        details={"fdr_number": fdr5.fdr_number, "amount": fdr5.declared_amount, "tenure_years": 10}
+
+    # Two-Way Official Messages between AICTE Officer & Bank Officer
+    msg1 = Message(
+        sender_id=user_aicte.id,
+        sender_role="AICTE_OFFICER",
+        sender_name="Dr. Rajesh Sharma (AICTE Regulation Bureau)",
+        recipient_role="BANK_OFFICER",
+        recipient_name="S. Ramesh (State Bank of India Nodal Cell)",
+        fdr_id=fdr4.id,
+        fdr_number=fdr4.fdr_number,
+        subject="Discrepancy Notice & Lien Rectification on FDR #BOB-CBE-2025-772910",
+        content="Sir, during AICTE Bureau Scrutiny, instrument #BOB-CBE-2025-772910 revealed a principal shortfall of ₹5,00,000 (declared ₹25,00,000 vs confirmed ₹20,00,000) and unencumbered status in CBS. Please confirm with your zonal nodal desk to record the AICTE lien immediately.",
+        message_type="DISCREPANCY_FLAG",
+        is_read=False
     )
 
-    # 8. Seed Sample Notification Alerts
+    msg2 = Message(
+        sender_id=user_bank.id,
+        sender_role="BANK_OFFICER",
+        sender_name="S. Ramesh (Chief Manager, State Bank of India)",
+        recipient_role="AICTE_OFFICER",
+        recipient_name="Dr. Rajesh Sharma (Director, AICTE)",
+        fdr_id=fdr1.id,
+        fdr_number=fdr1.fdr_number,
+        subject="Confirmation of Joint Lien Marking & DSC Attestation - VJTI Mumbai",
+        content="Respected Director, State Bank of India confirms active joint lien in favor of Member Secretary AICTE on FDR #SBI-DEL-2023-049281 (₹35,00,000) with maturity on 2028. Digital Signature Certificate (Class-3) attestation has been cryptographically applied.",
+        message_type="BANK_CONFIRMATION",
+        is_read=False
+    )
+    db.add_all([msg1, msg2])
+
+    # Seed Notification Alerts
     alert1 = NotificationAlert(
         fdr_id=fdr2.id,
         institution_id=inst2.id,
         alert_type="MATURITY_15_DAYS",
-        recipient=inst2.name,
+        recipient="AICTE_OFFICER",
         title="URGENT: FDR #PNB-ND-2021-984120 Matures in 12 Days",
-        message="Deposit of ₹50,00,000.00 at Punjab National Bank matures on " + in_12_days + ". Submit No-Gap Replacement FDR immediately.",
+        message="Deposit of ₹50,00,000.00 at Punjab National Bank matures on " + in_12_days + ". No-Gap Replacement required.",
         severity="CRITICAL"
     )
     alert2 = NotificationAlert(
         fdr_id=fdr4.id,
         institution_id=inst4.id,
         alert_type="BANK_MISMATCH",
-        recipient="AICTE_REGULATION_BUREAU",
-        title="Discrepancy Detected on BOB-CBE-2025-772910",
-        message="Bank of Baroda confirmed ₹20,00,000 vs declared ₹25,00,000, and lien is NOT marked to AICTE.",
+        recipient="BANK_OFFICER",
+        title="Discrepancy Notice on BOB-CBE-2025-772910",
+        message="Bank confirmed ₹20,00,000 vs declared ₹25,00,000, and lien is NOT marked to AICTE. Rectification notice issued.",
         severity="CRITICAL"
     )
-    alert3 = NotificationAlert(
-        fdr_id=fdr5.id,
-        institution_id=inst5.id,
-        alert_type="RELEASE_APPLICATION_SUBMITTED",
-        recipient="AICTE_REGULATION_BUREAU",
-        title="Lien Release Application: Institute of Management Studies",
-        message="Application received for release of FDR #HDFC-NOI-2016-118942 upon completion of 10-year lock-in period.",
-        severity="INFO"
-    )
-    db.add_all([alert1, alert2, alert3])
+    db.add_all([alert1, alert2])
 
     db.commit()
     db.close()
-    print("Database seeding completed successfully.")
+    print("Database seeding completed with 2 personas: AICTE Officer & Bank Officer.")
 
 if __name__ == "__main__":
     seed_database()

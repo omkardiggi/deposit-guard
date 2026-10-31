@@ -437,3 +437,4 @@ export const BankVerificationView: React.FC<BankVerificationViewProps> = ({
     </div>
   );
 };
+

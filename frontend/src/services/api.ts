@@ -16,6 +16,37 @@ export const api = {
     return res.json();
   },
 
+  // Messages between AICTE Officer & Bank Officer
+  getMessages: async (params?: { role?: string; unread_only?: boolean; fdr_id?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.role) query.append('role', params.role);
+    if (params?.unread_only) query.append('unread_only', 'true');
+    if (params?.fdr_id) query.append('fdr_id', params.fdr_id);
+    const res = await fetch(`${API_BASE}/messages?${query.toString()}`);
+    return res.json();
+  },
+  sendMessage: async (data: any, token?: string) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/messages`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Failed to send message');
+    return res.json();
+  },
+  markMessageRead: async (id: string) => {
+    const res = await fetch(`${API_BASE}/messages/${id}/mark-read`, {
+      method: 'POST'
+    });
+    return res.json();
+  },
+  getMessageUnreadCount: async (role: string) => {
+    const res = await fetch(`${API_BASE}/messages/unread-count?role=${role}`);
+    return res.json();
+  },
+
   // FDRs
   getFDRs: async (params?: { institution_id?: string; status?: string; search?: string; bank?: string }) => {
     const query = new URLSearchParams();
@@ -122,7 +153,7 @@ export const api = {
       },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Maker action failed');
+    if (!res.ok) throw new Error((await res.json()).detail || 'Scrutiny recommendation failed');
     return res.json();
   },
   checkerApproveRelease: async (data: { release_id: string; decision: string; remarks: string }, token: string) => {
@@ -134,7 +165,7 @@ export const api = {
       },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Checker authorization failed');
+    if (!res.ok) throw new Error((await res.json()).detail || 'Sanction authorization failed');
     return res.json();
   },
   executeDischarge: async (release_id: string) => {
@@ -168,9 +199,9 @@ export const api = {
   },
 
   // Alerts
-  getAlerts: async (params?: { institution_id?: string; unread_only?: boolean }) => {
+  getAlerts: async (params?: { recipient?: string; unread_only?: boolean }) => {
     const query = new URLSearchParams();
-    if (params?.institution_id) query.append('institution_id', params.institution_id);
+    if (params?.recipient) query.append('recipient', params.recipient);
     if (params?.unread_only) query.append('unread_only', 'true');
     const res = await fetch(`${API_BASE}/alerts?${query.toString()}`);
     return res.json();

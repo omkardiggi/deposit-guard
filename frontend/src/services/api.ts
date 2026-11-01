@@ -183,6 +183,27 @@ export const api = {
     return res.json();
   },
 
+  // Parse FDR fields out of text extracted in the browser. Used when the
+  // server has no OCR runtime available (e.g. a serverless deployment), so the
+  // same parsing rules still apply wherever the text came from.
+  parseExtractedText: async (payload: {
+    text: string;
+    filename?: string;
+    method?: string;
+    engine?: string;
+    pages?: number;
+    confidence?: number | null;
+    institution_id?: string;
+  }) => {
+    const res = await fetch(`${API_BASE}/documents/parse-text`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(await parseError(res, 'Could not parse the extracted text'));
+    return res.json();
+  },
+
   documentUrl: (storedPath: string) => `${API_BASE}/documents/${storedPath}`,
 
   // Bank Portal

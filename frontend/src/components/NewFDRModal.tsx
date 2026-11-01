@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Institution, OcrExtraction, UploadedDocument } from '../types';
 import { api } from '../services/api';
+import { extractDocumentText } from '../services/extract';
 import { InstitutionCombobox } from './InstitutionCombobox';
 
 interface NewFDRModalProps {
@@ -61,6 +62,7 @@ export const NewFDRModal: React.FC<NewFDRModalProps> = ({
   const [autoRenewalClause, setAutoRenewalClause] = useState(true);
 
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [doc, setDoc] = useState<UploadedDocument | null>(null);
   const [ocr, setOcr] = useState<OcrExtraction | null>(null);
@@ -97,19 +99,43 @@ export const NewFDRModal: React.FC<NewFDRModalProps> = ({
     setUploading(true);
     setUploadError(null);
     setOcr(null);
+    setProgress('Uploading…');
     try {
-      // Pass the selected institution so the backend can confirm the document
-      // actually belongs to it.
+      // Store the instrument, and let the server extract if it has an OCR
+      // runtime available.
       const result: UploadedDocument = await api.uploadDocument(file, true, institutionId);
       setDoc(result);
-      if (result.ocr) {
-        setOcr(result.ocr);
-        applyExtraction(result.ocr);
+
+      let extraction = result.ocr;
+
+      // A serverless backend cannot carry the OCR runtime, so fall back to
+      // extracting in the browser and send just the text back for parsing.
+      // The parsing rules are identical either way.
+      const serverExtracted = !!extraction?.method && (extraction?.detected_count ?? 0) > 0;
+      if (!serverExtracted) {
+        const local = await extractDocumentText(file, (stage, pct) =>
+          setProgress(pct != null ? `${stage} ${pct}%` : stage));
+        setProgress('Parsing fields…');
+        extraction = await api.parseExtractedText({
+          text: local.text,
+          filename: file.name,
+          method: local.method,
+          engine: local.engine,
+          pages: local.pages,
+          confidence: local.confidence,
+          institution_id: institutionId || undefined,
+        });
+      }
+
+      if (extraction) {
+        setOcr(extraction);
+        applyExtraction(extraction);
       }
     } catch (err: any) {
       setUploadError(err.message || 'Upload failed');
     } finally {
       setUploading(false);
+      setProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -198,7 +224,10 @@ export const NewFDRModal: React.FC<NewFDRModalProps> = ({
 
           {uploading && (
             <p className="text-[11px] text-blue-800">
-              Reading document… the OCR engine takes a few seconds on first use.
+              {progress || 'Reading document…'}
+              <span className="block text-blue-700/70">
+                First run downloads the OCR engine; later uploads are faster.
+              </span>
             </p>
           )}
 

@@ -6,11 +6,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from ..database import get_db
 from ..models import User, Institution
 from ..security import require_auth
-from ..ocr_engine import analyse_document
+from ..ocr_engine import analyse_document, parse_fdr_fields, match_institution
 
 router = APIRouter(prefix="/api/documents", tags=["Document Upload & OCR"])
 
@@ -122,3 +123,54 @@ def download_document(stored_name: str):
 
     original = stored_name.split("__", 1)[1]
     return FileResponse(path, filename=original)
+
+
+class ExtractedTextPayload(BaseModel):
+    """Text produced by the browser-side extractor, plus how it was obtained."""
+    text: str
+    filename: Optional[str] = None
+    method: Optional[str] = None          # PDF_TEXT_LAYER | OCR_IMAGE | OCR_SCANNED_PDF
+    engine: Optional[str] = None
+    pages: int = 0
+    confidence: Optional[float] = None
+    institution_id: Optional[str] = None
+
+
+@router.post("/parse-text")
+def parse_extracted_text(
+    payload: ExtractedTextPayload,
+    current_user: User = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    """
+    Parse FDR fields out of text that was extracted in the browser.
+
+    The heavy OCR runtime (onnxruntime + opencv, ~340 MB unzipped) cannot fit in
+    a serverless bundle, so extraction runs client-side in WebAssembly and only
+    the resulting text is posted here. Field parsing and the institution
+    cross-check are identical to the server-side path - same functions, same
+    rules - so results do not depend on where the text came from.
+    """
+    text = payload.text or ""
+    parsed = parse_fdr_fields(text)
+
+    inst_match = None
+    if payload.institution_id:
+        inst = db.query(Institution).filter(Institution.id == payload.institution_id).first()
+        if inst:
+            inst_match = match_institution(text, inst.name, inst.aicte_id)
+
+    return {
+        "status": "SUCCESS" if text.strip() else "NO_TEXT_FOUND",
+        "filename": payload.filename,
+        "method": payload.method,
+        "engine": payload.engine,
+        "pages": payload.pages,
+        "ocr_confidence": payload.confidence,
+        "warning": None if text.strip() else "No readable text could be extracted from this document.",
+        "extracted_fields": parsed["fields"],
+        "detected_count": parsed["detected_count"],
+        "total_fields": parsed["total_fields"],
+        "raw_text": text[:4000],
+        "institution_match": inst_match,
+    }

@@ -14,7 +14,11 @@ from ..ocr_engine import analyse_document
 
 router = APIRouter(prefix="/api/documents", tags=["Document Upload & OCR"])
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
+# Serverless hosts expose only /tmp as writable, so allow an override.
+_DEFAULT_UPLOADS = "/tmp/depositguard-uploads" if os.getenv("VERCEL") else os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads"
+)
+UPLOAD_DIR = os.getenv("DEPOSITGUARD_UPLOAD_DIR", _DEFAULT_UPLOADS)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB

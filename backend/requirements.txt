@@ -11,13 +11,11 @@ sqlalchemy>=2.0.0
 pyjwt>=2.8.0
 cryptography>=42.0.0
 
-# --- Document ingestion (required for upload + OCR) ---
-# PDFs with a text layer are read by PyMuPDF; scans and images go through
-# RapidOCR on ONNXRuntime. Without these the extraction endpoint degrades
-# to "OCR engine unavailable" and no fields are detected.
+# --- Document ingestion ---
+# PyMuPDF reads PDFs that carry a real text layer - exact, and small enough to
+# deploy anywhere. Image / scanned-PDF OCR lives in requirements-ocr.txt
+# because onnxruntime + opencv exceed Vercel's serverless size limit.
 pymupdf>=1.24.0
-rapidocr-onnxruntime>=1.2.3
-onnxruntime>=1.17.0
 pillow>=10.0.0
 numpy>=1.26.0
 

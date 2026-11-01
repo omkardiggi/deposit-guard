@@ -1,0 +1,11 @@
+# Image / scanned-document OCR.
+#
+# Kept out of requirements.txt because onnxruntime + opencv push the install
+# past Vercel's 250 MB serverless limit. Install these for local development,
+# Render, or any host with room — without them, scans and images report
+# "OCR engine unavailable" while PDF text-layer extraction still works.
+#
+#   pip install -r requirements.txt -r requirements-ocr.txt
+
+rapidocr-onnxruntime>=1.2.3
+onnxruntime>=1.17.0

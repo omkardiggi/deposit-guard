@@ -560,7 +560,16 @@ The frontend is a static SPA and deploys cleanly. `frontend/vercel.json` is incl
 > change it, you must redeploy for the new value to take effect. Without it the bundle
 > falls back to `http://localhost:8000` and a hosted frontend will not reach any API.
 
-### Backend — *not* Vercel
+### Backend — Render (one click)
+
+A `render.yaml` blueprint is included. At [render.com](https://render.com) choose
+**New → Blueprint**, point it at this repository, and Render provisions the API with a
+generated `DEPOSITGUARD_SECRET_KEY` and a 1 GB disk for uploaded instruments.
+
+Then set `VITE_API_BASE_URL` on Vercel to the resulting API URL and **redeploy the
+frontend** — the variable is baked in at build time.
+
+### Why the backend cannot go on Vercel
 
 The backend cannot run on Vercel's serverless platform:
 

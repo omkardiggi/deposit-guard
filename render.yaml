@@ -1,0 +1,29 @@
+# One-click backend deployment for Render (https://render.com).
+#
+# The DepositGuard backend needs a long-running process with a writable disk:
+# RapidOCR loads ONNX models into memory, SQLite writes to disk, and uploaded
+# instruments are stored on the filesystem. That rules out serverless hosts
+# such as Vercel, which is why only the frontend is deployed there.
+services:
+  - type: web
+    name: depositguard-api
+    runtime: python
+    plan: free
+    region: singapore          # closest region to India
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      # Signing key for JWTs. generateValue makes Render mint a random secret
+      # so the insecure in-code default is never used in a deployment.
+      - key: DEPOSITGUARD_SECRET_KEY
+        generateValue: true
+      # Public URL of the portal, so bank QR codes resolve to the hosted site.
+      - key: PORTAL_BASE_URL
+        value: https://depositguard-sih26265.vercel.app
+    disk:
+      name: depositguard-data
+      mountPath: /opt/render/project/src/backend/app/uploads
+      sizeGB: 1
